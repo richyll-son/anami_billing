@@ -1,0 +1,1823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AHNHAI Billing System</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
+  <style>
+    :root {
+      --brand:#1565c0;
+      --brand-dk:#003c8f;
+      --brand-lt:#e3f2fd;
+      --green:#1b5e20;
+      --green-lt:#e8f5e9;
+      --red:#b71c1c;
+      --red-lt:#ffebee;
+      --amber:#e65100;
+      --amber-lt:#fff8e1;
+      --ink:#263238;
+    }
+
+    body {
+      font-size:.875rem;
+      background:#f5f7fa;
+      color:#263238;
+    }
+
+    .app-nav {
+      background:var(--brand);
+    }
+
+    .app-nav .nav-link {
+      color:rgba(255,255,255,.84);
+      padding:.4rem .75rem;
+      border-radius:6px;
+    }
+
+    .app-nav .nav-link:hover,
+    .app-nav .nav-link.active {
+      color:#fff;
+      background:rgba(255,255,255,.15);
+    }
+
+    .sec-head {
+      color:var(--brand);
+      border-bottom:2px solid var(--brand-lt);
+      padding-bottom:.4rem;
+      margin-bottom:1rem;
+      font-weight:700;
+    }
+
+    .stat-card {
+      border:0;
+      border-radius:14px;
+    }
+
+    .stat-card .label {
+      color:#607d8b;
+      font-size:.78rem;
+      font-weight:600;
+      text-transform:uppercase;
+      letter-spacing:.02em;
+    }
+
+    .stat-card .val {
+      font-size:1.6rem;
+      font-weight:800;
+      color:var(--brand);
+      line-height:1.1;
+      word-break:break-word;
+    }
+
+    .stat-card .sub {
+      font-size:.78rem;
+      color:#78909c;
+    }
+
+    .metric-card {
+      border:0;
+      border-radius:16px;
+      box-shadow:0 2px 12px rgba(0,0,0,.06);
+      height:100%;
+    }
+
+    .metric-card .metric-title {
+      font-size:.78rem;
+      color:#607d8b;
+      text-transform:uppercase;
+      font-weight:700;
+      letter-spacing:.03em;
+    }
+
+    .metric-card .metric-value {
+      font-size:1.35rem;
+      font-weight:800;
+      color:#263238;
+    }
+
+    .metric-card .metric-note {
+      color:#78909c;
+      font-size:.78rem;
+    }
+
+    .chart-card {
+      border:0;
+      border-radius:16px;
+      box-shadow:0 2px 12px rgba(0,0,0,.06);
+    }
+
+    .chart-wrap {
+      position:relative;
+      min-height:270px;
+    }
+
+    .tbl-scroll {
+      max-height:460px;
+      overflow-y:auto;
+    }
+
+    .tbl-scroll table {
+      min-width:680px;
+    }
+
+    .tbl-scroll thead th {
+      position:sticky;
+      top:0;
+      z-index:2;
+      background:var(--brand);
+      color:#fff;
+      white-space:nowrap;
+    }
+
+    .ledger-wrap {
+      max-height:420px;
+      overflow:auto;
+    }
+
+    .ledger-wrap table {
+      min-width:1180px;
+    }
+
+    .ledger-wrap thead th {
+      position:sticky;
+      top:0;
+      z-index:2;
+      white-space:nowrap;
+    }
+
+    .bal-ok {
+      background:#c8e6c9 !important;
+    }
+
+    .bal-due {
+      background:#ffcdd2 !important;
+    }
+
+    .bal-over {
+      background:#bbdefb !important;
+    }
+
+    .s-paid,
+    .s-partial,
+    .s-unpaid {
+      border-radius:4px;
+      padding:2px 8px;
+      font-weight:700;
+      display:inline-block;
+      min-width:64px;
+      text-align:center;
+    }
+
+    .s-paid {
+      background:#c8e6c9;
+      color:#1b5e20;
+    }
+
+    .s-partial {
+      background:#fff9c4;
+      color:#e65100;
+    }
+
+    .s-unpaid {
+      background:#ffcdd2;
+      color:#b71c1c;
+    }
+
+    .common-pill {
+      display:inline-block;
+      padding:2px 7px;
+      border-radius:999px;
+      background:#ede7f6;
+      color:#4527a0;
+      font-size:.72rem;
+      font-weight:700;
+      margin-left:.35rem;
+    }
+
+    .money-negative {
+      color:#0d47a1;
+      font-weight:700;
+    }
+
+    .money-positive {
+      color:#263238;
+    }
+
+    .money-due {
+      color:#b71c1c;
+      font-weight:700;
+    }
+
+    .small-muted {
+      color:#78909c;
+      font-size:.78rem;
+    }
+
+    #overlay {
+      display:none;
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.45);
+      z-index:9999;
+      align-items:center;
+      justify-content:center;
+      flex-direction:column;
+    }
+
+    #overlay.on {
+      display:flex;
+    }
+
+    #overlay .spin {
+      width:3rem;
+      height:3rem;
+    }
+
+    .dashboard-table-wrap {
+      max-height:340px;
+      overflow:auto;
+    }
+
+    .dashboard-table-wrap thead th {
+      position:sticky;
+      top:0;
+      background:#263238;
+      color:#fff;
+      z-index:2;
+    }
+
+    .btn-group-sm .btn {
+      font-weight:700;
+    }
+
+    @media (max-width: 768px) {
+      .stat-card .val,
+      .metric-card .metric-value {
+        font-size:1.18rem;
+      }
+
+      .chart-wrap {
+        min-height:230px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<div id="overlay">
+  <div class="spinner-border spin text-white mb-3" role="status"></div>
+  <div id="overlay-msg" class="text-white fw-semibold fs-5">Processing…</div>
+</div>
+
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:9998">
+  <div id="toast" class="toast align-items-center text-white border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body" id="toast-msg"></div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<nav class="navbar navbar-expand-md app-nav py-2">
+  <div class="container-fluid">
+    <span class="navbar-brand text-white fw-bold fs-6">
+      <i class="bi bi-droplet-fill me-1"></i>AHNHAI Billing
+    </span>
+
+    <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
+      <i class="bi bi-list text-white fs-4"></i>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navMenu">
+      <ul class="navbar-nav ms-auto gap-1 mt-2 mt-md-0">
+        <li><a href="#" class="nav-link active" data-tab="dashboard"><i class="bi bi-grid me-1"></i>Dashboard</a></li>
+        <li><a href="#" class="nav-link" data-tab="readings"><i class="bi bi-pencil-square me-1"></i>Readings</a></li>
+        <li><a href="#" class="nav-link" data-tab="payments"><i class="bi bi-cash-coin me-1"></i>Payments</a></li>
+        <li><a href="#" class="nav-link" data-tab="ledger"><i class="bi bi-journal-text me-1"></i>Ledger</a></li>
+        <li><a href="#" class="nav-link" data-tab="summary"><i class="bi bi-table me-1"></i>Summary</a></li>
+        <li><a href="#" class="nav-link" data-tab="setup"><i class="bi bi-gear me-1"></i>Setup</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<div class="container-fluid px-3 px-md-4 py-3">
+
+  <!-- DASHBOARD -->
+  <section id="tab-dashboard" class="tab-pane">
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+      <h5 class="sec-head flex-grow-1 mb-0"><i class="bi bi-grid me-2"></i>Dashboard</h5>
+      <button class="btn btn-sm btn-outline-primary" onclick="loadDashboard()">
+        <i class="bi bi-arrow-clockwise me-1"></i>Refresh Dashboard
+      </button>
+    </div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-sm-3">
+        <div class="card stat-card shadow-sm">
+          <div class="card-body py-3">
+            <div class="label mb-1">Total Accounts</div>
+            <div class="val" id="d-units">—</div>
+            <div class="sub">Includes common accounts</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-6 col-sm-3">
+        <div class="card stat-card shadow-sm">
+          <div class="card-body py-3">
+            <div class="label mb-1">Last Billing Period</div>
+            <div class="val fs-5" id="d-period">—</div>
+            <div class="sub">Latest rate calculator row</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-6 col-sm-3">
+        <div class="card stat-card shadow-sm">
+          <div class="card-body py-3">
+            <div class="label mb-1">Last Rate / m³</div>
+            <div class="val" id="d-rate">—</div>
+            <div class="sub">Water billing rate</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-6 col-sm-3">
+        <div class="card stat-card shadow-sm">
+          <div class="card-body py-3">
+            <div class="label mb-1">Unposted Payments</div>
+            <div class="val" id="d-unposted">—</div>
+            <div class="sub">Pending posting</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3">
+        <div class="card metric-card">
+          <div class="card-body">
+            <div class="metric-title">Water Payments</div>
+            <div class="metric-value" id="dash-water-pay-card">—</div>
+            <div class="metric-note">Total water credits</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-6 col-md-3">
+        <div class="card metric-card">
+          <div class="card-body">
+            <div class="metric-title">Water Receivables</div>
+            <div class="metric-value text-danger" id="dash-water-rec-card">—</div>
+            <div class="metric-note">Positive water balances</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-6 col-md-3">
+        <div class="card metric-card">
+          <div class="card-body">
+            <div class="metric-title">Dues Payments</div>
+            <div class="metric-value" id="dash-dues-pay-card">—</div>
+            <div class="metric-note">Total dues credits</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-6 col-md-3">
+        <div class="card metric-card">
+          <div class="card-body">
+            <div class="metric-title">Dues Receivables</div>
+            <div class="metric-value text-danger" id="dash-dues-rec-card">—</div>
+            <div class="metric-note">Positive dues balances</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-lg-6">
+        <div class="card chart-card">
+          <div class="card-header bg-white fw-semibold">
+            <i class="bi bi-droplet me-1"></i>Water Collection
+          </div>
+          <div class="card-body">
+            <div class="chart-wrap" style="min-height:200px">
+              <canvas id="chart-water-donut"></canvas>
+            </div>
+            <div class="row g-2 mt-2 text-center">
+              <div class="col-6">
+                <div class="small-muted">Payments</div>
+                <div class="fw-bold" id="donut-water-payments">—</div>
+              </div>
+              <div class="col-6">
+                <div class="small-muted">Receivables</div>
+                <div class="fw-bold text-danger" id="donut-water-receivables">—</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="card chart-card">
+          <div class="card-header bg-white fw-semibold">
+            <i class="bi bi-house me-1"></i>Association Dues Collection
+          </div>
+          <div class="card-body">
+            <div class="chart-wrap" style="min-height:200px">
+              <canvas id="chart-dues-donut"></canvas>
+            </div>
+            <div class="row g-2 mt-2 text-center">
+              <div class="col-6">
+                <div class="small-muted">Payments</div>
+                <div class="fw-bold" id="donut-dues-payments">—</div>
+              </div>
+              <div class="col-6">
+                <div class="small-muted">Receivables</div>
+                <div class="fw-bold text-danger" id="donut-dues-receivables">—</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-lg-6">
+        <div class="card chart-card">
+          <div class="card-header bg-white fw-semibold">
+            <i class="bi bi-calendar3 me-1"></i>Water — Monthly Trend
+          </div>
+          <div class="card-body">
+            <div class="chart-wrap">
+              <canvas id="chart-water-monthly"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="card chart-card">
+          <div class="card-header bg-white fw-semibold">
+            <i class="bi bi-calendar3 me-1"></i>Association Dues — Monthly Trend
+          </div>
+          <div class="card-body">
+            <div class="chart-wrap">
+              <canvas id="chart-dues-monthly"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-lg-6">
+        <div class="card chart-card">
+          <div class="card-header bg-white fw-semibold">
+            <i class="bi bi-bar-chart-steps me-1"></i>Phase Summary
+          </div>
+          <div class="card-body">
+            <div class="chart-wrap">
+              <canvas id="chart-phase"></canvas>
+            </div>
+            <div class="dashboard-table-wrap mt-3">
+              <table class="table table-sm table-bordered mb-0">
+                <thead>
+                  <tr>
+                    <th>Phase</th>
+                    <th class="text-end">Payments</th>
+                    <th class="text-end">Receivables</th>
+                  </tr>
+                </thead>
+                <tbody id="dash-phase-tbody">
+                  <tr><td colspan="3" class="text-center text-muted">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="card chart-card">
+          <div class="card-header bg-white fw-semibold">
+            <i class="bi bi-diagram-3 me-1"></i>Block Summary
+          </div>
+          <div class="card-body">
+            <div class="chart-wrap">
+              <canvas id="chart-block"></canvas>
+            </div>
+            <div class="dashboard-table-wrap mt-3">
+              <table class="table table-sm table-bordered mb-0">
+                <thead>
+                  <tr>
+                    <th>Block</th>
+                    <th class="text-end">Payments</th>
+                    <th class="text-end">Receivables</th>
+                  </tr>
+                </thead>
+                <tbody id="dash-block-tbody">
+                  <tr><td colspan="3" class="text-center text-muted">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2">
+      <button class="btn btn-primary" onclick="goTab('readings')"><i class="bi bi-pencil-square me-1"></i>Enter Readings</button>
+      <button class="btn btn-success" onclick="goTab('payments')"><i class="bi bi-cash-coin me-1"></i>Record Payment</button>
+      <button class="btn btn-outline-primary" onclick="goTab('summary')"><i class="bi bi-table me-1"></i>View Summary</button>
+      <a id="d-sheets-link" href="#" target="_blank" class="btn btn-outline-secondary">
+        <i class="bi bi-box-arrow-up-right me-1"></i>Open Spreadsheet
+      </a>
+    </div>
+  </section>
+
+  <!-- READINGS -->
+  <section id="tab-readings" class="tab-pane d-none">
+    <h5 class="sec-head"><i class="bi bi-pencil-square me-2"></i>Water Reading Input</h5>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-header fw-semibold bg-white">Billing Period &amp; Expenses</div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-6 col-sm-4 col-md-2">
+            <label class="form-label">Year</label>
+            <select class="form-select" id="r-year"></select>
+          </div>
+
+          <div class="col-6 col-sm-4 col-md-2">
+            <label class="form-label">Reading Month</label>
+            <select class="form-select" id="r-month"></select>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label class="form-label">MCWD Coverage</label>
+            <div class="input-group">
+              <input type="date" class="form-control" id="r-mcwd-from">
+              <span class="input-group-text">–</span>
+              <input type="date" class="form-control" id="r-mcwd-to">
+            </div>
+          </div>
+
+          <div class="col-6 col-md-2">
+            <label class="form-label">MCWD Amount (₱)</label>
+            <input type="number" class="form-control" id="r-mcwd-amt" min="0" step="0.01" placeholder="0.00">
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label class="form-label">Electricity Coverage</label>
+            <div class="input-group">
+              <input type="date" class="form-control" id="r-elec-from">
+              <span class="input-group-text">–</span>
+              <input type="date" class="form-control" id="r-elec-to">
+            </div>
+          </div>
+
+          <div class="col-6 col-md-2">
+            <label class="form-label">Electricity Amount (₱)</label>
+            <input type="number" class="form-control" id="r-elec-amt" min="0" step="0.01" placeholder="0.00">
+          </div>
+
+          <div class="col-6 col-md-2">
+            <label class="form-label">Manpower (₱)</label>
+            <input type="number" class="form-control" id="r-manpower" min="0" step="0.01">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center bg-white">
+        <span class="fw-semibold">Unit Readings</span>
+        <span class="text-muted small" id="r-count">— units</span>
+      </div>
+
+      <div class="card-body p-0">
+        <div class="tbl-scroll">
+          <table class="table table-sm table-bordered table-hover mb-0">
+            <thead>
+              <tr>
+                <th>Unit ID</th>
+                <th>Meter No.</th>
+                <th>Homeowner</th>
+                <th>Current Reading</th>
+                <th>Previous Reading</th>
+                <th>Consumption</th>
+              </tr>
+            </thead>
+            <tbody id="r-tbody">
+              <tr><td colspan="6" class="text-center text-muted py-3">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2">
+      <button class="btn btn-primary btn-lg" onclick="generateBills()">
+        <i class="bi bi-lightning-fill me-1"></i>Process &amp; Generate Bills
+      </button>
+      <button class="btn btn-outline-secondary" onclick="loadReadings()">
+        <i class="bi bi-arrow-clockwise me-1"></i>Refresh Table
+      </button>
+    </div>
+  </section>
+
+  <!-- PAYMENTS -->
+  <section id="tab-payments" class="tab-pane d-none">
+    <h5 class="sec-head"><i class="bi bi-cash-coin me-2"></i>Payments</h5>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-header fw-semibold bg-white">Record New Payment</div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-6 col-sm-3 col-md-2">
+            <label class="form-label">Unit ID *</label>
+            <select class="form-select" id="p-unit" onchange="onPayUnit()">
+              <option value="">— Select —</option>
+            </select>
+          </div>
+
+          <div class="col-6 col-sm-5 col-md-3">
+            <label class="form-label">Homeowner</label>
+            <input type="text" class="form-control" id="p-owner" readonly placeholder="Auto-filled">
+          </div>
+
+          <div class="col-6 col-sm-4 col-md-2">
+            <label class="form-label">Payment Date *</label>
+            <input type="date" class="form-control" id="p-date">
+          </div>
+
+          <div class="col-6 col-sm-4 col-md-2">
+            <label class="form-label">Amount (₱) *</label>
+            <input type="number" class="form-control" id="p-amount" min="0" step="0.01" placeholder="0.00">
+          </div>
+
+          <div class="col-6 col-sm-4 col-md-2">
+            <label class="form-label">OR Number</label>
+            <input type="text" class="form-control" id="p-or">
+          </div>
+
+          <div class="col-6 col-sm-4 col-md-2">
+            <label class="form-label">Type *</label>
+            <select class="form-select" id="p-type" onchange="onPayType()">
+              <option>Water</option>
+              <option>Dues</option>
+              <option>Both</option>
+            </select>
+          </div>
+
+          <div id="p-split" class="col-12 d-none">
+            <div class="row g-2">
+              <div class="col-6 col-md-3">
+                <label class="form-label">Water Amount (₱)</label>
+                <input type="number" class="form-control" id="p-water" min="0" step="0.01" placeholder="0.00">
+              </div>
+
+              <div class="col-6 col-md-3">
+                <label class="form-label">Dues Amount (₱)</label>
+                <input type="number" class="form-control" id="p-dues" min="0" step="0.01" placeholder="0.00">
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Remarks</label>
+            <input type="text" class="form-control" id="p-remarks">
+          </div>
+        </div>
+
+        <div class="mt-3">
+          <button class="btn btn-success" onclick="addPayment()">
+            <i class="bi bi-plus-circle me-1"></i>Add to Log
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-header d-flex justify-content-between align-items-center bg-white">
+        <span class="fw-semibold">Payment Log</span>
+        <button class="btn btn-warning btn-sm fw-semibold" onclick="postPayments()">
+          <i class="bi bi-send me-1"></i>Post All Unposted
+        </button>
+      </div>
+
+      <div class="tbl-scroll">
+        <table class="table table-sm table-bordered table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Recorded</th>
+              <th>Unit</th>
+              <th>Homeowner</th>
+              <th>Pay Date</th>
+              <th class="text-end">Amount</th>
+              <th>OR #</th>
+              <th>Type</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="pay-tbody">
+            <tr><td colspan="8" class="text-center text-muted py-3">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- LEDGER -->
+  <section id="tab-ledger" class="tab-pane d-none">
+    <h5 class="sec-head"><i class="bi bi-journal-text me-2"></i>Unit Ledger</h5>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-body py-2">
+        <div class="row g-3 align-items-center">
+          <div class="col-sm-4 col-md-3">
+            <label class="form-label fw-semibold mb-1">Select Unit</label>
+            <select class="form-select" id="l-unit" onchange="loadLedger()">
+              <option value="">— Select Unit —</option>
+            </select>
+          </div>
+
+          <div class="col">
+            <div class="text-muted small">Homeowner / Account</div>
+            <div class="fw-semibold fs-5" id="l-owner">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-header fw-semibold text-white" style="background:var(--brand)">
+        <i class="bi bi-droplet me-1"></i>Water Bill Ledger
+      </div>
+
+      <div class="ledger-wrap">
+        <table class="table table-sm table-bordered mb-0">
+          <thead class="table-primary">
+            <tr>
+              <th>Period</th>
+              <th>Payment Date</th>
+              <th>Bill Date</th>
+              <th>Prev Date</th>
+              <th>Present Date</th>
+              <th class="text-end">Prev Rdg</th>
+              <th class="text-end">Curr Rdg</th>
+              <th class="text-end">Cons</th>
+              <th class="text-end">Rate</th>
+              <th>Due Date</th>
+              <th class="text-end">Penalty</th>
+              <th class="text-end">Debit</th>
+              <th class="text-end">Credit</th>
+              <th class="text-end">Balance</th>
+              <th class="text-end">Add-On</th>
+              <th>OR #</th>
+              <th>Bill #</th>
+              <th>Remarks</th>
+            </tr>
+          </thead>
+          <tbody id="wl-tbody">
+            <tr><td colspan="18" class="text-center text-muted py-2">Select a unit above</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-header fw-semibold text-white" style="background:#1b5e20">
+        <i class="bi bi-house me-1"></i>Association Dues Ledger
+      </div>
+
+      <div class="ledger-wrap">
+        <table class="table table-sm table-bordered mb-0">
+          <thead class="table-success">
+            <tr>
+              <th>Year</th>
+              <th>Month</th>
+              <th>Pay Date</th>
+              <th class="text-end">Debit</th>
+              <th class="text-end">Credit</th>
+              <th class="text-end">Balance</th>
+              <th>OR #</th>
+              <th>Remarks</th>
+            </tr>
+          </thead>
+          <tbody id="dl-tbody">
+            <tr><td colspan="8" class="text-center text-muted py-2">Select a unit above</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- SUMMARY -->
+  <section id="tab-summary" class="tab-pane d-none">
+    <h5 class="sec-head"><i class="bi bi-table me-2"></i>Monthly Billing Summary</h5>
+
+    <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+      <div class="btn-group btn-group-sm">
+        <button class="btn btn-primary active" id="f-all" onclick="filterSummary('all')">All</button>
+        <button class="btn btn-outline-primary" id="f-p1" onclick="filterSummary('1')">Phase 1</button>
+        <button class="btn btn-outline-primary" id="f-p2" onclick="filterSummary('2')">Phase 2</button>
+        <button class="btn btn-outline-primary" id="f-common" onclick="filterSummary('common')">Common Accounts</button>
+      </div>
+
+      <button class="btn btn-sm btn-outline-secondary ms-auto" onclick="loadSummary()">
+        <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+      </button>
+
+      <span class="text-muted small" id="sum-period"></span>
+    </div>
+
+    <div style="overflow-x:auto">
+      <table class="table table-sm table-bordered table-hover" id="sum-table">
+        <thead class="table-dark">
+          <tr>
+            <th>Unit</th>
+            <th>Homeowner</th>
+            <th>Meter</th>
+            <th class="text-end">Cons (m³)</th>
+            <th class="text-end">Rate</th>
+            <th class="text-end">Water Bill</th>
+            <th class="text-end">Penalty</th>
+            <th class="text-end">Arrears(W)</th>
+            <th class="text-end">Add-On</th>
+            <th class="text-end">Total Water</th>
+            <th class="text-end">Assoc Due</th>
+            <th class="text-end">Arrears(D)</th>
+            <th class="text-end">Total Dues</th>
+            <th class="text-end fw-bold">Grand Total</th>
+            <th>Status</th>
+            <th>Due Date</th>
+          </tr>
+        </thead>
+        <tbody id="sum-tbody">
+          <tr><td colspan="16" class="text-center text-muted py-3">Click Refresh to load</td></tr>
+        </tbody>
+        <tfoot id="sum-tfoot"></tfoot>
+      </table>
+    </div>
+  </section>
+
+  <!-- SETUP -->
+  <section id="tab-setup" class="tab-pane d-none">
+    <h5 class="sec-head"><i class="bi bi-gear me-2"></i>Setup &amp; Utilities</h5>
+
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header fw-semibold bg-white">Initial Setup</div>
+          <div class="card-body">
+            <p class="text-muted small">Creates all required sheets and imports the Masterlist. Run once on a brand-new spreadsheet.</p>
+            <button class="btn btn-primary" onclick="runSetup()">
+              <i class="bi bi-play-fill me-1"></i>Run Initial Setup
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header fw-semibold bg-white">Import Masterlist</div>
+          <div class="card-body">
+            <p class="text-muted small">Syncs new units from the source spreadsheet. Existing rows are never overwritten.</p>
+            <p class="mb-2"><code class="small"><?= SRC_MASTERLIST_ID ?></code></p>
+            <button class="btn btn-outline-primary" onclick="importMasterlist()">
+              <i class="bi bi-cloud-download me-1"></i>Import Now
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header fw-semibold bg-white">Refresh Reading Input Table</div>
+          <div class="card-body">
+            <p class="text-muted small">Re-populates the reading table with all active units and their last meter readings.</p>
+            <button class="btn btn-outline-secondary" onclick="refreshReadingTable()">
+              <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header fw-semibold bg-white">System Status</div>
+          <div class="card-body" id="setup-status">
+            <div class="text-muted small">Loading…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+var _unitIds = [];
+var _summaryAll = [];
+var _activePhase = 'all';
+var _charts = {};
+
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.nav-link[data-tab]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      goTab(this.dataset.tab);
+    });
+  });
+
+  var yr = document.getElementById('r-year');
+  for (var y = 2024; y <= 2030; y++) {
+    yr.innerHTML += '<option value="' + y + '">' + y + '</option>';
+  }
+
+  var months = [
+    'January','February','March','April','May','June',
+    'July','August','September','October','November','December'
+  ];
+
+  var ms = document.getElementById('r-month');
+  months.forEach(function (m) {
+    ms.innerHTML += '<option>' + m + '</option>';
+  });
+
+  var now = new Date();
+  yr.value = now.getFullYear();
+  ms.value = months[now.getMonth()];
+  document.getElementById('p-date').value = isoDate(now);
+
+  loadDashboard();
+  loadReadings();
+  loadPayments();
+  loadUnitIds();
+});
+
+function goTab(name) {
+  document.querySelectorAll('.tab-pane').forEach(function (s) {
+    s.classList.add('d-none');
+  });
+
+  document.getElementById('tab-' + name).classList.remove('d-none');
+
+  document.querySelectorAll('.nav-link[data-tab]').forEach(function (a) {
+    a.classList.toggle('active', a.dataset.tab === name);
+  });
+
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'summary') loadSummary();
+  if (name === 'setup') loadSetupStatus();
+}
+
+function busy(msg) {
+  document.getElementById('overlay-msg').textContent = msg || 'Processing…';
+  document.getElementById('overlay').classList.add('on');
+}
+
+function done() {
+  document.getElementById('overlay').classList.remove('on');
+}
+
+function toast(msg, type) {
+  var el = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  el.className = 'toast align-items-center text-white border-0 bg-' + (type || 'success');
+  bootstrap.Toast.getOrCreateInstance(el, { delay: 4500 }).show();
+}
+
+function n(v) {
+  var x = parseFloat(v);
+  return isNaN(x) ? 0 : x;
+}
+
+function p2(v) {
+  return n(v).toFixed(2);
+}
+
+function money(v) {
+  var x = n(v);
+  var abs = Math.abs(x).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+
+  if (x < 0) return '(₱' + abs + ')';
+  return '₱' + abs;
+}
+
+function moneyCell(v, extraClass) {
+  var x = n(v);
+  var cls = extraClass || '';
+  if (x < 0) cls += ' money-negative';
+  return '<span class="' + cls + '">' + money(x) + '</span>';
+}
+
+function isoDate(d) {
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
+
+function fmtDate(s) {
+  if (!s) return '';
+  var d = (s instanceof Date) ? s : new Date(s);
+  if (isNaN(d)) return String(s);
+  return String(d.getMonth() + 1).padStart(2, '0') + '/' +
+    String(d.getDate()).padStart(2, '0') + '/' + d.getFullYear();
+}
+
+function toIso(s) {
+  if (!s) return '';
+  var d = new Date(s);
+  return isNaN(d) ? '' : isoDate(d);
+}
+
+function badge(status) {
+  var cls = status === 'Paid' ? 's-paid' : status === 'Partial' ? 's-partial' : 's-unpaid';
+  return '<span class="' + cls + '">' + status + '</span>';
+}
+
+function balTd(v) {
+  var x = n(v);
+  var cls = x < 0 ? 'bal-over' : (x <= 0 ? 'bal-ok' : 'bal-due');
+  return '<td class="text-end ' + cls + '">' + money(x) + '</td>';
+}
+
+function isCommonAccount(uid) {
+  var v = String(uid || '').trim().toUpperCase().replace(/\s+/g, '');
+  return ['GUARDHOUSE', 'CLUBHOUSE', 'CHAPEL'].indexOf(v) !== -1;
+}
+
+function destroyChart(id) {
+  if (_charts[id]) {
+    _charts[id].destroy();
+    delete _charts[id];
+  }
+}
+
+function makeChart(id, config) {
+  destroyChart(id);
+  var canvas = document.getElementById(id);
+  if (!canvas) return;
+  _charts[id] = new Chart(canvas, config);
+}
+
+function loadDashboard() {
+  google.script.run
+    .withSuccessHandler(function (d) {
+      document.getElementById('d-units').textContent = d.unitCount;
+      document.getElementById('d-period').textContent = d.lastPeriod;
+      document.getElementById('d-rate').textContent = d.lastRate ? money(d.lastRate) : '—';
+      document.getElementById('d-unposted').textContent = d.unpostedPayments;
+      if (d.spreadsheetUrl) document.getElementById('d-sheets-link').href = d.spreadsheetUrl;
+    })
+    .withFailureHandler(function (e) {
+      console.error(e);
+    })
+    .webapp_getStatus();
+
+  google.script.run
+    .withSuccessHandler(renderDashboardSummary)
+    .withFailureHandler(function (e) {
+      console.error(e);
+      toast('Dashboard summary error: ' + e.message, 'danger');
+    })
+    .webapp_getDashboardSummary();
+}
+
+function renderDashboardSummary(data) {
+  data = data || {};
+  var total = data.total || {};
+  var phases = data.phases || [];
+  var blocks = data.blocks || [];
+  var monthly = data.monthly || [];
+
+  document.getElementById('dash-water-pay-card').textContent = money(total.waterPayments || 0);
+  document.getElementById('dash-water-rec-card').textContent = money(total.waterReceivables || 0);
+  document.getElementById('dash-dues-pay-card').textContent = money(total.duesPayments || 0);
+  document.getElementById('dash-dues-rec-card').textContent = money(total.duesReceivables || 0);
+
+  document.getElementById('donut-water-payments').textContent = money(total.waterPayments || 0);
+  document.getElementById('donut-water-receivables').textContent = money(total.waterReceivables || 0);
+  document.getElementById('donut-dues-payments').textContent = money(total.duesPayments || 0);
+  document.getElementById('donut-dues-receivables').textContent = money(total.duesReceivables || 0);
+
+  document.getElementById('dash-phase-tbody').innerHTML = phases.length
+    ? phases.map(function (r) {
+      return '<tr>' +
+        '<td class="fw-semibold">' + r.label + '</td>' +
+        '<td class="text-end">' + money(r.payments) + '</td>' +
+        '<td class="text-end text-danger">' + money(r.receivables) + '</td>' +
+      '</tr>';
+    }).join('')
+    : '<tr><td colspan="3" class="text-center text-muted">No phase data.</td></tr>';
+
+  document.getElementById('dash-block-tbody').innerHTML = blocks.length
+    ? blocks.map(function (r) {
+      return '<tr>' +
+        '<td class="fw-semibold">' + r.label + '</td>' +
+        '<td class="text-end">' + money(r.payments) + '</td>' +
+        '<td class="text-end text-danger">' + money(r.receivables) + '</td>' +
+      '</tr>';
+    }).join('')
+    : '<tr><td colspan="3" class="text-center text-muted">No block data.</td></tr>';
+
+  var donutOpts = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'bottom' },
+      tooltip: { callbacks: { label: chartMoneyLabel } }
+    }
+  };
+
+  makeChart('chart-water-donut', {
+    type: 'doughnut',
+    data: {
+      labels: ['Payments', 'Receivables'],
+      datasets: [{
+        data: [n(total.waterPayments), n(total.waterReceivables)],
+        backgroundColor: ['#1565c0', '#ef9a9a'],
+        borderWidth: 2
+      }]
+    },
+    options: donutOpts
+  });
+
+  makeChart('chart-dues-donut', {
+    type: 'doughnut',
+    data: {
+      labels: ['Payments', 'Receivables'],
+      datasets: [{
+        data: [n(total.duesPayments), n(total.duesReceivables)],
+        backgroundColor: ['#2e7d32', '#ef9a9a'],
+        borderWidth: 2
+      }]
+    },
+    options: donutOpts
+  });
+
+  makeChart('chart-water-monthly', {
+    type: 'bar',
+    data: {
+      labels: monthly.map(function (r) { return r.label; }),
+      datasets: [
+        { label: 'Payments',    data: monthly.map(function (r) { return n(r.waterPayments); }),    backgroundColor: 'rgba(21,101,192,0.75)' },
+        { label: 'Receivables', data: monthly.map(function (r) { return n(r.waterReceivables); }), backgroundColor: 'rgba(183,28,28,0.5)' }
+      ]
+    },
+    options: barMoneyOptions()
+  });
+
+  makeChart('chart-dues-monthly', {
+    type: 'bar',
+    data: {
+      labels: monthly.map(function (r) { return r.label; }),
+      datasets: [
+        { label: 'Payments',    data: monthly.map(function (r) { return n(r.duesPayments); }),    backgroundColor: 'rgba(46,125,50,0.75)' },
+        { label: 'Receivables', data: monthly.map(function (r) { return n(r.duesReceivables); }), backgroundColor: 'rgba(183,28,28,0.5)' }
+      ]
+    },
+    options: barMoneyOptions()
+  });
+
+  makeChart('chart-phase', {
+    type: 'bar',
+    data: {
+      labels: phases.map(function (r) { return r.label; }),
+      datasets: [
+        { label: 'Payments',    data: phases.map(function (r) { return n(r.payments); }) },
+        { label: 'Receivables', data: phases.map(function (r) { return n(r.receivables); }) }
+      ]
+    },
+    options: barMoneyOptions()
+  });
+
+  makeChart('chart-block', {
+    type: 'bar',
+    data: {
+      labels: blocks.map(function (r) { return r.label; }),
+      datasets: [
+        { label: 'Payments',    data: blocks.map(function (r) { return n(r.payments); }) },
+        { label: 'Receivables', data: blocks.map(function (r) { return n(r.receivables); }) }
+      ]
+    },
+    options: barMoneyOptions()
+  });
+}
+
+function chartMoneyLabel(ctx) {
+  var label = ctx.dataset.label || ctx.label || '';
+  var raw = ctx.parsed;
+  var value;
+  if (raw === null || raw === undefined) {
+    value = 0;
+  } else if (typeof raw === 'object' && !Array.isArray(raw) && 'y' in raw) {
+    value = raw.y;
+  } else if (Array.isArray(raw)) {
+    value = raw[1];
+  } else {
+    value = raw;
+  }
+  return label + ': ' + money(value);
+}
+
+function barMoneyOptions() {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'bottom' },
+      tooltip: { callbacks: { label: chartMoneyLabel } }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: {
+          callback: function (value) {
+            return '₱' + Number(value).toLocaleString();
+          }
+        }
+      }
+    }
+  };
+}
+
+function loadReadings() {
+  busy('Loading readings…');
+
+  google.script.run
+    .withSuccessHandler(function (data) {
+      done();
+
+      var c = data.config;
+      document.getElementById('r-year').value = c.year;
+      document.getElementById('r-month').value = c.month;
+      document.getElementById('r-mcwd-from').value = toIso(c.mcwdFrom);
+      document.getElementById('r-mcwd-to').value = toIso(c.mcwdTo);
+      document.getElementById('r-mcwd-amt').value = c.mcwdAmt || '';
+      document.getElementById('r-elec-from').value = toIso(c.elecFrom);
+      document.getElementById('r-elec-to').value = toIso(c.elecTo);
+      document.getElementById('r-elec-amt').value = c.elecAmt || '';
+      document.getElementById('r-manpower').value = c.manpower || 35000;
+
+      renderReadingsTable(data.table);
+    })
+    .withFailureHandler(function (e) {
+      done();
+      toast('Error: ' + e.message, 'danger');
+    })
+    .webapp_getWaterInputData();
+}
+
+function renderReadingsTable(rows) {
+  var tbody = document.getElementById('r-tbody');
+  document.getElementById('r-count').textContent = rows.length + ' units';
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No units. Run Setup first.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(function (r, i) {
+    var prevVal = r.prev !== '' ? r.prev : '';
+    var common = isCommonAccount(r.unitId) ? '<span class="common-pill">Common</span>' : '';
+
+    return '<tr>' +
+      '<td class="fw-semibold">' + r.unitId + common + '</td>' +
+      '<td>' + (r.meterNo || '') + '</td>' +
+      '<td>' + (r.ownerName || '') + '</td>' +
+      '<td style="min-width:130px">' +
+        '<input type="number" class="form-control form-control-sm cur-inp" ' +
+          'data-uid="' + r.unitId + '" data-prev="' + prevVal + '" data-idx="' + i + '" ' +
+          'value="' + (r.cur !== '' ? r.cur : '') + '" min="0" step="0.01" ' +
+          'oninput="calcCons(this)">' +
+      '</td>' +
+      '<td class="text-end">' + (prevVal !== '' ? p2(prevVal) : '<span class="text-muted">—</span>') + '</td>' +
+      '<td class="text-end fw-semibold" id="cons-' + i + '">' +
+        (r.cur !== '' && prevVal !== '' ? Math.max(0, n(r.cur) - n(prevVal)).toFixed(0) : '') +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function calcCons(inp) {
+  var cur = parseFloat(inp.value);
+  var prev = parseFloat(inp.dataset.prev) || 0;
+  var el = document.getElementById('cons-' + inp.dataset.idx);
+  el.textContent = !isNaN(cur) ? Math.max(0, cur - prev).toFixed(0) : '';
+}
+
+function generateBills() {
+  var config = {
+    year: document.getElementById('r-year').value,
+    month: document.getElementById('r-month').value,
+    mcwdFrom: document.getElementById('r-mcwd-from').value,
+    mcwdTo: document.getElementById('r-mcwd-to').value,
+    mcwdAmt: parseFloat(document.getElementById('r-mcwd-amt').value) || 0,
+    elecFrom: document.getElementById('r-elec-from').value,
+    elecTo: document.getElementById('r-elec-to').value,
+    elecAmt: parseFloat(document.getElementById('r-elec-amt').value) || 0,
+    manpower: parseFloat(document.getElementById('r-manpower').value) || 35000
+  };
+
+  var readings = [];
+  document.querySelectorAll('.cur-inp').forEach(function (inp) {
+    if (inp.value === '') return;
+
+    readings.push({
+      unitId: inp.dataset.uid,
+      cur: parseFloat(inp.value),
+      prev: inp.dataset.prev !== '' ? parseFloat(inp.dataset.prev) : 0,
+      meterNo: ''
+    });
+  });
+
+  if (!readings.length) {
+    toast('No current readings entered.', 'warning');
+    return;
+  }
+
+  if (!confirm('Generate bills for ' + config.month + ' ' + config.year + '?\n' +
+    readings.length + ' unit/account(s) with readings entered.')) {
+    return;
+  }
+
+  busy('Generating bills for ' + readings.length + ' accounts…');
+
+  google.script.run
+    .withSuccessHandler(function (r) {
+      done();
+
+      if (!r.ok) {
+        toast('Error: ' + r.msg, 'danger');
+        return;
+      }
+
+      toast('✓ ' + r.period + ' | Rate ' + money(r.rate) + '/m³ | ' + r.unitCount + ' accounts billed', 'success');
+
+      loadDashboard();
+      loadReadings();
+      loadSummary();
+    })
+    .withFailureHandler(function (e) {
+      done();
+      toast('Error: ' + e.message, 'danger');
+    })
+    .webapp_generateBills(config, readings);
+}
+
+function loadUnitIds() {
+  google.script.run
+    .withSuccessHandler(function (ids) {
+      _unitIds = ids || [];
+
+      var opts = _unitIds.map(function (u) {
+        var label = u.id + (u.common ? ' — Common' : '');
+        return '<option value="' + u.id + '">' + label + '</option>';
+      }).join('');
+
+      document.getElementById('p-unit').innerHTML = '<option value="">— Select —</option>' + opts;
+      document.getElementById('l-unit').innerHTML = '<option value="">— Select Unit —</option>' + opts;
+    })
+    .withFailureHandler(function (e) {
+      console.error(e);
+    })
+    .webapp_getUnitIds();
+}
+
+function onPayUnit() {
+  var uid = document.getElementById('p-unit').value;
+  var found = _unitIds.find(function (u) {
+    return u.id === uid;
+  });
+
+  document.getElementById('p-owner').value = found ? found.name : '';
+}
+
+function onPayType() {
+  var t = document.getElementById('p-type').value;
+  document.getElementById('p-split').classList.toggle('d-none', t !== 'Both');
+}
+
+function loadPayments() {
+  google.script.run
+    .withSuccessHandler(renderPayLog)
+    .withFailureHandler(function (e) {
+      console.error(e);
+    })
+    .webapp_getPaymentLog();
+}
+
+function renderPayLog(rows) {
+  var tbody = document.getElementById('pay-tbody');
+
+  if (!rows || !rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No payments recorded.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(function (r) {
+    var st = String(r.status).toLowerCase() === 'posted';
+
+    return '<tr>' +
+      '<td>' + (r.dateRec || '') + '</td>' +
+      '<td class="fw-semibold">' + r.unitId + '</td>' +
+      '<td>' + (r.ownerName || '') + '</td>' +
+      '<td>' + (r.payDate || '') + '</td>' +
+      '<td class="text-end">' + money(r.amount) + '</td>' +
+      '<td>' + (r.or || '') + '</td>' +
+      '<td>' + (r.type || '') + '</td>' +
+      '<td class="fw-semibold ' + (st ? 'text-success' : 'text-warning') + '">' + r.status + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function addPayment() {
+  var uid = document.getElementById('p-unit').value;
+  var amt = parseFloat(document.getElementById('p-amount').value);
+  var dt = document.getElementById('p-date').value;
+  var tp = document.getElementById('p-type').value;
+
+  if (!uid) {
+    toast('Select a unit.', 'warning');
+    return;
+  }
+
+  if (!dt) {
+    toast('Enter a payment date.', 'warning');
+    return;
+  }
+
+  if (isNaN(amt) || amt <= 0) {
+    toast('Enter a valid amount.', 'warning');
+    return;
+  }
+
+  var p = {
+    unitId: uid,
+    ownerName: document.getElementById('p-owner').value,
+    payDate: dt,
+    amount: amt,
+    or: document.getElementById('p-or').value,
+    type: tp,
+    waterAmt: tp === 'Both' ? (parseFloat(document.getElementById('p-water').value) || 0) : 0,
+    duesAmt: tp === 'Both' ? (parseFloat(document.getElementById('p-dues').value) || 0) : 0,
+    remarks: document.getElementById('p-remarks').value
+  };
+
+  busy('Saving payment…');
+
+  google.script.run
+    .withSuccessHandler(function (r) {
+      done();
+
+      if (!r.ok) {
+        toast('Error: ' + r.msg, 'danger');
+        return;
+      }
+
+      toast('Payment recorded.', 'success');
+
+      document.getElementById('p-amount').value = '';
+      document.getElementById('p-or').value = '';
+      document.getElementById('p-water').value = '';
+      document.getElementById('p-dues').value = '';
+      document.getElementById('p-remarks').value = '';
+
+      loadPayments();
+      loadDashboard();
+    })
+    .withFailureHandler(function (e) {
+      done();
+      toast(e.message, 'danger');
+    })
+    .webapp_addPayment(p);
+}
+
+function postPayments() {
+  if (!confirm('Post all unposted payments now?')) return;
+
+  busy('Posting payments…');
+
+  google.script.run
+    .withSuccessHandler(function (r) {
+      done();
+
+      if (!r.ok) {
+        toast('Error: ' + r.msg, 'danger');
+        return;
+      }
+
+      toast('Posted: ' + r.posted + (r.errors ? ' | Errors: ' + r.errors : ''), r.errors ? 'warning' : 'success');
+
+      loadPayments();
+      loadDashboard();
+      loadSummary();
+
+      var selected = document.getElementById('l-unit').value;
+      if (selected) loadLedger();
+    })
+    .withFailureHandler(function (e) {
+      done();
+      toast(e.message, 'danger');
+    })
+    .webapp_postAllPayments();
+}
+
+function loadLedger() {
+  var uid = document.getElementById('l-unit').value;
+
+  if (!uid) return;
+
+  busy('Loading ledger for ' + uid + '…');
+
+  google.script.run
+    .withSuccessHandler(function (data) {
+      done();
+
+      var owner = data.ownerName || (isCommonAccount(uid) ? uid : '—');
+      document.getElementById('l-owner').innerHTML = owner + (isCommonAccount(uid) ? '<span class="common-pill">Common Account</span>' : '');
+
+      renderWaterLedger(data.water);
+      renderDuesLedger(data.dues, uid);
+    })
+    .withFailureHandler(function (e) {
+      done();
+      toast(e.message, 'danger');
+    })
+    .webapp_getUnitLedger(uid);
+}
+
+function renderWaterLedger(rows) {
+  var tbody = document.getElementById('wl-tbody');
+
+  if (!rows || !rows.length) {
+    tbody.innerHTML = '<tr><td colspan="18" class="text-center text-muted">No water billing history.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(function (r) {
+    var cons = Math.max(0, n(r.curRdg) - n(r.prevRdg));
+    var period = ((r.month || '') + ' ' + (r.year || '')).trim();
+
+    return '<tr>' +
+      '<td class="fw-semibold">' + period + '</td>' +
+      '<td>' + (r.payDate || '') + '</td>' +
+      '<td>' + (r.billDate || '') + '</td>' +
+      '<td>' + (r.prevDate || '') + '</td>' +
+      '<td>' + (r.presentDate || '') + '</td>' +
+      '<td class="text-end">' + p2(r.prevRdg) + '</td>' +
+      '<td class="text-end">' + p2(r.curRdg) + '</td>' +
+      '<td class="text-end">' + cons.toFixed(0) + '</td>' +
+      '<td class="text-end">' + money(r.rate) + '</td>' +
+      '<td>' + (r.dueDate || '') + '</td>' +
+      '<td class="text-end text-danger">' + money(r.penalty) + '</td>' +
+      '<td class="text-end">' + money(r.debit) + '</td>' +
+      '<td class="text-end text-success">' + money(r.credit) + '</td>' +
+      balTd(r.balance) +
+      '<td class="text-end">' + money(r.addon) + '</td>' +
+      '<td>' + (r.or || '') + '</td>' +
+      '<td class="small text-muted">' + (r.billNo || '') + '</td>' +
+      '<td>' + (r.remarks || '') + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function renderDuesLedger(rows, uid) {
+  var tbody = document.getElementById('dl-tbody');
+
+  if (isCommonAccount(uid)) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Common accounts do not have monthly dues.</td></tr>';
+    return;
+  }
+
+  if (!rows || !rows.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No dues history.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(function (r) {
+    return '<tr>' +
+      '<td>' + (r.year || '') + '</td>' +
+      '<td class="fw-semibold">' + (r.month || '') + '</td>' +
+      '<td>' + (r.payDate || '') + '</td>' +
+      '<td class="text-end">' + money(r.debit) + '</td>' +
+      '<td class="text-end text-success">' + money(r.credit) + '</td>' +
+      balTd(r.balance) +
+      '<td>' + (r.or || '') + '</td>' +
+      '<td>' + (r.remarks || '') + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function loadSummary() {
+  busy('Loading summary…');
+
+  google.script.run
+    .withSuccessHandler(function (data) {
+      done();
+
+      _summaryAll = data.rows || [];
+      document.getElementById('sum-period').textContent = data.period || '';
+
+      filterSummary(_activePhase);
+    })
+    .withFailureHandler(function (e) {
+      done();
+      toast(e.message, 'danger');
+    })
+    .webapp_getMonthlySummary();
+}
+
+function filterSummary(phase) {
+  _activePhase = phase;
+
+  ['all', 'p1', 'p2', 'common'].forEach(function (f) {
+    var el = document.getElementById('f-' + f);
+    var isActive = f === (phase === '1' ? 'p1' : phase === '2' ? 'p2' : phase === 'common' ? 'common' : 'all');
+
+    el.classList.toggle('active', isActive);
+    el.classList.toggle('btn-primary', isActive);
+    el.classList.toggle('btn-outline-primary', !isActive);
+  });
+
+  var rows = _summaryAll;
+
+  if (phase === '1') {
+    rows = rows.filter(function (r) {
+      return r.group === '1';
+    });
+  }
+
+  if (phase === '2') {
+    rows = rows.filter(function (r) {
+      return r.group === '2';
+    });
+  }
+
+  if (phase === 'common') {
+    rows = rows.filter(function (r) {
+      return r.group === 'common';
+    });
+  }
+
+  var tbody = document.getElementById('sum-tbody');
+
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="16" class="text-center text-muted py-3">No data. Run Refresh.</td></tr>';
+    document.getElementById('sum-tfoot').innerHTML = '';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(function (r) {
+    var common = r.group === 'common' ? '<span class="common-pill">Common</span>' : '';
+
+    return '<tr>' +
+      '<td class="fw-semibold">' + r.unitId + common + '</td>' +
+      '<td>' + (r.name || '') + '</td>' +
+      '<td>' + (r.meter || '') + '</td>' +
+      '<td class="text-end">' + n(r.cons).toFixed(0) + '</td>' +
+      '<td class="text-end">' + money(r.rate) + '</td>' +
+      '<td class="text-end">' + money(r.waterBill) + '</td>' +
+      '<td class="text-end text-danger">' + money(r.penalty) + '</td>' +
+      '<td class="text-end">' + money(r.waterArrears) + '</td>' +
+      '<td class="text-end">' + money(r.addon) + '</td>' +
+      '<td class="text-end fw-semibold">' + money(r.totalWater) + '</td>' +
+      '<td class="text-end">' + money(r.assocDue) + '</td>' +
+      '<td class="text-end">' + money(r.duesArrears) + '</td>' +
+      '<td class="text-end">' + money(r.totalDues) + '</td>' +
+      '<td class="text-end fw-bold">' + money(r.grandTotal) + '</td>' +
+      '<td>' + badge(String(r.status)) + '</td>' +
+      '<td>' + (r.dueDate || '') + '</td>' +
+    '</tr>';
+  }).join('');
+
+  var T = rows.reduce(function (a, r) {
+    a.wb += n(r.waterBill);
+    a.pen += n(r.penalty);
+    a.wa += n(r.waterArrears);
+    a.addon += n(r.addon);
+    a.tw += n(r.totalWater);
+    a.ad += n(r.assocDue);
+    a.da += n(r.duesArrears);
+    a.td += n(r.totalDues);
+    a.gt += n(r.grandTotal);
+    return a;
+  }, { wb:0, pen:0, wa:0, addon:0, tw:0, ad:0, da:0, td:0, gt:0 });
+
+  document.getElementById('sum-tfoot').innerHTML =
+    '<tr class="table-secondary fw-bold">' +
+      '<td colspan="5">TOTALS (' + rows.length + ' accounts)</td>' +
+      '<td class="text-end">' + money(T.wb) + '</td>' +
+      '<td class="text-end text-danger">' + money(T.pen) + '</td>' +
+      '<td class="text-end">' + money(T.wa) + '</td>' +
+      '<td class="text-end">' + money(T.addon) + '</td>' +
+      '<td class="text-end">' + money(T.tw) + '</td>' +
+      '<td class="text-end">' + money(T.ad) + '</td>' +
+      '<td class="text-end">' + money(T.da) + '</td>' +
+      '<td class="text-end">' + money(T.td) + '</td>' +
+      '<td class="text-end">' + money(T.gt) + '</td>' +
+      '<td colspan="2"></td>' +
+    '</tr>';
+}
+
+function loadSetupStatus() {
+  google.script.run
+    .withSuccessHandler(function (d) {
+      document.getElementById('setup-status').innerHTML =
+        '<dl class="mb-0 small row">' +
+          '<dt class="col-5">Spreadsheet</dt>' +
+          '<dd class="col-7"><a href="' + d.spreadsheetUrl + '" target="_blank" class="text-truncate d-inline-block" style="max-width:200px">' + d.spreadsheetName + '</a></dd>' +
+          '<dt class="col-5">Accounts in Masterlist</dt><dd class="col-7">' + d.unitCount + '</dd>' +
+          '<dt class="col-5">Last Billing Period</dt><dd class="col-7">' + d.lastPeriod + '</dd>' +
+          '<dt class="col-5">Unposted Payments</dt><dd class="col-7">' + d.unpostedPayments + '</dd>' +
+        '</dl>';
+    })
+    .withFailureHandler(function (e) {
+      console.error(e);
+    })
+    .webapp_getStatus();
+}
+
+function runSetup() {
+  if (!confirm('Run initial setup? This creates all sheets and imports the Masterlist.\nOnly run once on a new spreadsheet.')) return;
+
+  busy('Setting up system…');
+
+  google.script.run
+    .withSuccessHandler(function (r) {
+      done();
+
+      toast(r.ok ? '✓ ' + r.msg : 'Error: ' + r.msg, r.ok ? 'success' : 'danger');
+
+      if (r.ok) {
+        loadDashboard();
+        loadReadings();
+        loadUnitIds();
+      }
+    })
+    .withFailureHandler(function (e) {
+      done();
+      toast(e.message, 'danger');
+    })
+    .webapp_runSetup();
+}
+
+function importMasterlist() {
+  busy('Importing masterlist…');
+
+  google.script.run
+    .withSuccessHandler(function (r) {
+      done();
+
+      toast(r.ok ? '✓ ' + r.msg + ' (' + r.unitCount + ' total accounts)' : 'Error: ' + r.msg, r.ok ? 'success' : 'danger');
+
+      if (r.ok) {
+        loadUnitIds();
+        loadDashboard();
+      }
+    })
+    .withFailureHandler(function (e) {
+      done();
+      toast(e.message, 'danger');
+    })
+    .webapp_importMasterlist();
+}
+
+function refreshReadingTable() {
+  busy('Refreshing reading table…');
+
+  google.script.run
+    .withSuccessHandler(function (r) {
+      done();
+
+      toast(r.ok ? '✓ Reading table refreshed.' : 'Error: ' + r.msg, r.ok ? 'success' : 'danger');
+
+      if (r.ok) loadReadings();
+    })
+    .withFailureHandler(function (e) {
+      done();
+      toast(e.message, 'danger');
+    })
+    .webapp_refreshReadingTable();
+}
+</script>
+</body>
+</html>
