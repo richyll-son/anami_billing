@@ -1,0 +1,16 @@
+# ── Node.js test suite (Jest / vm / fs — not GAS) ────────────
+__tests__/**
+coverage/**
+
+# ── Node.js project config ────────────────────────────────────
+node_modules/**
+package.json
+package-lock.json
+jest.config.js
+jest.setup.js
+babel.config.js
+
+# ── Non-script assets ─────────────────────────────────────────
+logo.png
+CLAUDE.md
+README.md

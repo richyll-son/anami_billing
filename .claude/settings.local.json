@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls \"C:/personal/AHNHAI_FINAL/\"*.gs)",
+      "Bash(npm install:*)",
+      "Bash(npx jest:*)",
+      "Bash(node:*)",
+      "Bash(npm test:*)"
+    ]
+  }
+}

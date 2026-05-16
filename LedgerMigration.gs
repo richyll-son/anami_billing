@@ -333,14 +333,25 @@ function lm_findLedgerHeaderInfo_(values) {
     var duesEndCol = waterStartCol - 1;
 
     var duesMonthCol = lm_findExactNormInRange_(norms, 'MONTH', 0, duesEndCol);
+    if (duesMonthCol === -1) duesMonthCol = lm_findExactNormInRange_(norms, 'PERIOD', 0, duesEndCol);
+    if (duesMonthCol === -1) duesMonthCol = lm_findContainsAllInRange_(norms, ['BILLING', 'MONTH'], 0, duesEndCol);
+    if (duesMonthCol === -1) duesMonthCol = lm_findContainsAllInRange_(norms, ['MONTH', 'YEAR'], 0, duesEndCol);
+
     var duesDebitCol = lm_findContainsAllInRange_(norms, ['DEBIT', 'MONTHLY', 'DUES'], 0, duesEndCol);
+    if (duesDebitCol === -1) duesDebitCol = lm_findContainsAllInRange_(norms, ['MONTHLY', 'DUES'], 0, duesEndCol);
+    if (duesDebitCol === -1) duesDebitCol = lm_findContainsAllInRange_(norms, ['ASSOCIATION', 'DUES'], 0, duesEndCol);
+    if (duesDebitCol === -1) duesDebitCol = lm_findExactNormInRange_(norms, 'MONTHLYDUES', 0, duesEndCol);
+    if (duesDebitCol === -1) duesDebitCol = lm_findExactNormInRange_(norms, 'ASSOCIATIONDUES', 0, duesEndCol);
+
+    var duesCreditCol = lm_findContainsAllInRange_(norms, ['CREDIT', 'PAYMENTS'], 0, duesEndCol);
+    if (duesCreditCol === -1) duesCreditCol = lm_findContainsAllInRange_(norms, ['CREDIT', 'PAYMENT'], 0, duesEndCol);
+    if (duesCreditCol === -1) duesCreditCol = lm_findExactNormInRange_(norms, 'PAYMENTS', 0, duesEndCol);
+    if (duesCreditCol === -1) duesCreditCol = lm_findExactNormInRange_(norms, 'CREDITPAYMENTS', 0, duesEndCol);
 
     if (duesMonthCol === -1 || duesDebitCol === -1) {
       /*
         Water-only sheets are still valid for GUARDHOUSE, CLUBHOUSE, CHAPEL.
         So do not reject yet.
-      }
-
       */
     }
 
@@ -358,7 +369,7 @@ function lm_findLedgerHeaderInfo_(values) {
         paymentDate: lm_findExactNormInRange_(norms, 'PAYMENTDATE', 0, duesEndCol),
         month: duesMonthCol,
         debit: duesDebitCol,
-        credit: lm_findContainsAllInRange_(norms, ['CREDIT', 'PAYMENTS'], 0, duesEndCol),
+        credit: duesCreditCol,
         balance: lm_findExactNormInRange_(norms, 'BALANCE', 0, duesEndCol),
         orNumber: lm_findContainsAnyInRange_(norms, ['REFERENC', 'ORNUMBER'], 0, duesEndCol),
         remarks: lm_findExactNormInRange_(norms, 'REMARKS', 0, duesEndCol)
@@ -929,6 +940,135 @@ function lm_titleCase_(value) {
 
 
 /**
+ * Re-imports only _DuesLedger from source folders, leaving _WaterLedger intact.
+ *
+ * Use this to fix dues balances without wiping water billing data.
+ * After import, recalcDuesBalances() is called so balances are recalculated
+ * from the imported debit/credit rows — not copied as-is.
+ *
+ * WARNING: Dues payments posted in the new system after the last migration will
+ * be lost. Re-post them from Central Payment Log if needed.
+ */
+function lm_reimportDuesOnly_() {
+  var SOURCE_FOLDERS = [
+    { label: 'Phase 1',  folderId: '1KwWboN0tvj2_rmns6qrp2LSn26Sjyeu9' },
+    { label: 'Phase 2',  folderId: '15YDk9ZNxRmeRftZndNjjXkHFowOp_qFO' }
+  ];
+
+  try {
+    var targetSS = ss_();
+    var duesLedgerSheet = getSheet_(SH._DL);
+
+    if (!duesLedgerSheet) {
+      alert_('_DuesLedger sheet not found. Run Initial Setup first.');
+      return;
+    }
+
+    var proceed = lm_confirm_(
+      'Re-Import Dues Ledger',
+      'This will CLEAR and REBUILD _DuesLedger only.\n\n' +
+      '_WaterLedger is NOT affected.\n\n' +
+      'WARNING: Dues payments posted in this system after the last\n' +
+      'migration will be lost. Re-post from Central Payment Log.\n\n' +
+      'Continue?'
+    );
+
+    if (!proceed) return;
+
+    lm_clearDataRowsOnly_(duesLedgerSheet);
+
+    var allDuesRows = [];
+    var reportRows = [];
+
+    reportRows.push([
+      'TIMESTAMP', 'FOLDER GROUP', 'FILE NAME', 'FILE ID',
+      'SHEET NAME', 'UNIT ID', 'STATUS', 'DUES ROWS', 'WATER ROWS', 'MESSAGE'
+    ]);
+
+    SOURCE_FOLDERS.forEach(function(source) {
+      var folder;
+      try {
+        folder = DriveApp.getFolderById(source.folderId);
+      } catch (e) {
+        reportRows.push(lm_reportRow_(source.label, '', source.folderId, '', '', 'ERROR', 0, 0, 'Cannot open folder: ' + e.message));
+        return;
+      }
+
+      var files = folder.getFiles();
+
+      while (files.hasNext()) {
+        var file = files.next();
+
+        if (file.getMimeType() !== MimeType.GOOGLE_SHEETS) continue;
+
+        var sourceSS;
+        try {
+          sourceSS = SpreadsheetApp.openById(file.getId());
+        } catch (e) {
+          reportRows.push(lm_reportRow_(source.label, file.getName(), file.getId(), '', '', 'ERROR', 0, 0, 'Cannot open: ' + e.message));
+          continue;
+        }
+
+        sourceSS.getSheets().forEach(function(sheet) {
+          var unitId = lm_normalizeUnitId_(sheet.getName());
+
+          if (!lm_isBillableLedgerTab_(unitId) || lm_isCommonAccount_(unitId)) {
+            return;
+          }
+
+          try {
+            var parsed = lm_parseOldUnitLedgerSheet_(sheet, unitId, {
+              migrateDues: true,
+              migrateWater: false
+            });
+
+            Array.prototype.push.apply(allDuesRows, parsed.duesRows);
+
+            reportRows.push(lm_reportRow_(
+              source.label, file.getName(), file.getId(),
+              sheet.getName(), unitId,
+              parsed.duesRows.length > 0 ? 'IMPORTED' : 'EMPTY',
+              parsed.duesRows.length, 0, parsed.message
+            ));
+
+          } catch (e) {
+            reportRows.push(lm_reportRow_(
+              source.label, file.getName(), file.getId(),
+              sheet.getName(), unitId, 'ERROR', 0, 0, e.message
+            ));
+          }
+        });
+      }
+    });
+
+    if (allDuesRows.length > 0) {
+      lm_appendRows_(duesLedgerSheet, allDuesRows);
+    }
+
+    try {
+      recalcDuesBalances();
+    } catch (e) {
+      Logger.log('recalcDuesBalances skipped: ' + e.message);
+    }
+
+    lm_writeMigrationReport_(targetSS, reportRows);
+
+    alert_(
+      'Dues re-import complete!\n\n' +
+      'Rows imported: ' + allDuesRows.length + '\n\n' +
+      'Balances recalculated from debit/credit history.\n\n' +
+      'Check Migration Report for details.\n\n' +
+      'Re-post any recent dues payments from Central Payment Log.'
+    );
+
+  } catch (err) {
+    Logger.log(err);
+    alert_('Dues re-import failed:\n' + err.message);
+  }
+}
+
+
+/**
  * Confirmation wrapper.
  */
 function lm_confirm_(title, message) {
@@ -938,5 +1078,167 @@ function lm_confirm_(title, message) {
     return result === ui.Button.YES;
   } catch (e) {
     return true;
+  }
+}
+
+
+// ── Clean Upload + Recompute ──────────────────────────────────
+// Wipes all data stores and display sheets, reimports ledger
+// history from Drive folders, then recomputes balances only
+// (penalties are imported as-is from the source ledger sheets).
+function cleanUploadAndRecompute() {
+  var SOURCE_FOLDERS = [
+    { label: 'Phase 1',         folderId: '1KwWboN0tvj2_rmns6qrp2LSn26Sjyeu9', migrateDues: true,  migrateWater: true },
+    { label: 'Phase 2',         folderId: '15YDk9ZNxRmeRftZndNjjXkHFowOp_qFO', migrateDues: true,  migrateWater: true },
+    { label: 'Common Accounts', folderId: '1Ecbb72bavWiLddfiPtH4Ymg8m51z1zDC', migrateDues: false, migrateWater: true }
+  ];
+
+  if (!lm_confirm_(
+    'Clean Upload + Recompute',
+    'This will permanently:\n\n' +
+    '1. CLEAR all data from:\n' +
+    '      _WaterLedger\n' +
+    '      _DuesLedger\n' +
+    '      Water Reading Data Store\n' +
+    '      Rate Calculator\n' +
+    '      Central Payment Log\n' +
+    '      Monthly Summary\n' +
+    '      Phase 1 Bill Print\n' +
+    '      Phase 2 Bill Print\n\n' +
+    '2. IMPORT ledger history from Drive folders:\n' +
+    '      Phase 1 (water + dues)\n' +
+    '      Phase 2 (water + dues)\n' +
+    '      Common Accounts (water only)\n\n' +
+    '3. RECOMPUTE all balances using new formula.\n' +
+    '   Penalties are imported as-is.\n\n' +
+    'Payments in Central Payment Log must be re-posted manually.\n\n' +
+    'Make a backup before proceeding.\n\n' +
+    'Continue?'
+  )) return;
+
+  try {
+    var ss = ss_();
+    toast_('Clearing data stores…', 'Clean Upload');
+
+    // ── Step 1: Clear data stores (keep headers) ──────────────
+    var dataStoreNames = [SH._WL, SH._DL, SH.W_STORE, SH.RATE_CALC, SH.PAY_LOG];
+    dataStoreNames.forEach(function(name) {
+      var sh = ss.getSheetByName(name);
+      if (sh) lm_clearDataRowsOnly_(sh);
+    });
+
+    // ── Step 2: Clear display sheets (full content) ───────────
+    var displayNames = [SH.SUMMARY, SH.P1_PRINT, SH.P2_PRINT];
+    displayNames.forEach(function(name) {
+      var sh = ss.getSheetByName(name);
+      if (sh) sh.clearContents();
+    });
+
+    // ── Step 3: Import from Drive folders ─────────────────────
+    toast_('Importing from Drive folders…', 'Clean Upload');
+
+    var waterLedgerSheet = getSheet_(SH._WL);
+    var duesLedgerSheet  = getSheet_(SH._DL);
+
+    if (!waterLedgerSheet || !duesLedgerSheet) {
+      alert_('Required ledger sheets are missing. Run Initial Setup first.');
+      return;
+    }
+
+    var allWaterRows = [];
+    var allDuesRows  = [];
+    var reportRows   = [[
+      'TIMESTAMP', 'FOLDER GROUP', 'FILE NAME', 'FILE ID',
+      'SHEET NAME', 'UNIT ID', 'STATUS', 'DUES ROWS', 'WATER ROWS', 'MESSAGE'
+    ]];
+
+    SOURCE_FOLDERS.forEach(function(source) {
+      var folder;
+      try {
+        folder = DriveApp.getFolderById(source.folderId);
+      } catch (e) {
+        reportRows.push(lm_reportRow_(source.label, '', source.folderId, '', '', 'ERROR', 0, 0, 'Cannot open folder: ' + e.message));
+        return;
+      }
+
+      var files = folder.getFiles();
+      while (files.hasNext()) {
+        var file = files.next();
+
+        if (file.getMimeType() !== MimeType.GOOGLE_SHEETS) {
+          reportRows.push(lm_reportRow_(source.label, file.getName(), file.getId(), '', '', 'SKIPPED', 0, 0, 'Not a Google Sheets file.'));
+          continue;
+        }
+
+        var sourceSS;
+        try {
+          sourceSS = SpreadsheetApp.openById(file.getId());
+        } catch (e) {
+          reportRows.push(lm_reportRow_(source.label, file.getName(), file.getId(), '', '', 'ERROR', 0, 0, 'Cannot open: ' + e.message));
+          continue;
+        }
+
+        sourceSS.getSheets().forEach(function(sheet) {
+          var sheetName = sheet.getName();
+          var unitId    = lm_normalizeUnitId_(sheetName);
+
+          if (!lm_isBillableLedgerTab_(unitId)) {
+            reportRows.push(lm_reportRow_(source.label, file.getName(), file.getId(), sheetName, '', 'SKIPPED', 0, 0, 'Not a billable unit/account tab.'));
+            return;
+          }
+
+          var isCommon = lm_isCommonAccount_(unitId);
+
+          try {
+            var parsed = lm_parseOldUnitLedgerSheet_(sheet, unitId, {
+              migrateDues  : source.migrateDues && !isCommon,
+              migrateWater : source.migrateWater
+            });
+
+            Array.prototype.push.apply(allWaterRows, parsed.waterRows);
+            Array.prototype.push.apply(allDuesRows,  parsed.duesRows);
+
+            reportRows.push(lm_reportRow_(
+              source.label, file.getName(), file.getId(),
+              sheetName, unitId, 'IMPORTED',
+              parsed.duesRows.length, parsed.waterRows.length, parsed.message
+            ));
+          } catch (e) {
+            reportRows.push(lm_reportRow_(
+              source.label, file.getName(), file.getId(),
+              sheetName, unitId, 'ERROR', 0, 0, e.message
+            ));
+          }
+        });
+      }
+    });
+
+    if (allWaterRows.length > 0) lm_appendRows_(waterLedgerSheet, allWaterRows);
+    if (allDuesRows.length  > 0) lm_appendRows_(duesLedgerSheet,  allDuesRows);
+
+    // ── Step 4: Recompute dues balances (water balances trusted as-is from import) ──
+    toast_('Recomputing dues balances…', 'Clean Upload');
+    recalcDuesBalances();
+
+    // ── Step 5: Migration report ───────────────────────────────
+    lm_writeMigrationReport_(ss, reportRows);
+
+    alert_(
+      'Clean Upload + Recompute complete!\n\n' +
+      'Water ledger rows imported : ' + allWaterRows.length + '\n' +
+      'Dues ledger rows imported  : ' + allDuesRows.length  + '\n\n' +
+      'Balances recomputed with new formula.\n' +
+      'Penalties imported as-is from source ledgers.\n\n' +
+      'Cleared sheets:\n' +
+      '  _WaterLedger, _DuesLedger, Water Reading Data Store,\n' +
+      '  Rate Calculator, Central Payment Log,\n' +
+      '  Monthly Summary, Phase 1 Bill Print, Phase 2 Bill Print\n\n' +
+      'Check the Migration Report sheet for details.\n\n' +
+      'Re-post any payments from Central Payment Log manually.'
+    );
+
+  } catch (err) {
+    Logger.log(err);
+    alert_('Clean Upload failed:\n' + err.message);
   }
 }

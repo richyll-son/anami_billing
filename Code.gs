@@ -7,6 +7,13 @@
 var SRC_MASTERLIST_ID  = '1b-sOFs61PLmv8JcCtFftbxwE6zS8f5yA96nPahFFEyk';
 var SRC_WATER_STORE_ID = '1FiFcIazPqHCUAvCp57mzrsxAw8ZlMiEK';
 
+// ── Import source folders (read-only) ────────────────────────
+var IMPORT_FOLDERS = {
+  'Phase 1':          '1KwWboN0tvj2_rmns6qrp2LSn26Sjyeu9',
+  'Phase 2':          '15YDk9ZNxRmeRftZndNjjXkHFowOp_qFO',
+  'Common Accounts':  '1Ecbb72bavWiLddfiPtH4Ymg8m51z1zDC'
+};
+
 // ── Sheet name registry ──────────────────────────────────────
 var SH = {
   MASTERLIST : 'Masterlist',
@@ -20,6 +27,9 @@ var SH = {
   P2_PRINT   : 'Phase 2 Bill Print',
   _WL        : '_WaterLedger',   // hidden data store
   _DL        : '_DuesLedger',    // hidden data store
+  _BOD       : '_BOD',           // hidden data store
+  _DUES_RATES: '_DuesRates',     // hidden data store
+  _METER_CHG : '_MeterChanges',  // hidden data store
 };
 
 // ── Business constants ───────────────────────────────────────
@@ -31,10 +41,11 @@ var MIN_WATER_BILL = 250;
 var PENALTY_RATE   = 0.05;
 
 // ── Layout constants ─────────────────────────────────────────
-// Water Reading Input: rows 1-13 are form fields; data table starts at row 14
-var INPUT_TABLE_START = 14;
+// Water Reading Input: rows 1-15 are form fields/header; data table starts at row 16
+// Row 13 = Coverage From date, Row 14 = Coverage To date, Row 15 = table header
+var INPUT_TABLE_START = 16;
 // Water Input table columns (1-based)
-var WI_COL = { UNIT:1, METER:2, OWNER:3, CUR:4, PREV:5, CONS:6 };
+var WI_COL = { UNIT:1, METER:2, OWNER:3, CUR:4, PREV:5, CONS:6, ADDON:7 };
 // Unit Ledger layout
 var UL_DATA_ROW   = 6;   // first data row in Unit Ledger display
 var UL_WATER_COL  = 1;   // water ledger starts at column 1
@@ -55,6 +66,21 @@ var DL = {
   DEBIT:4, CREDIT:5, BALANCE:6, OR:7, REMARKS:8
 };
 var DL_COLS = 9;
+
+// _DuesRates column indices (0-based)
+var DR = { AMOUNT:0, FROM_MONTH:1, FROM_YEAR:2, TO_MONTH:3, TO_YEAR:4 };
+var DR_COLS = 5;
+
+// _BOD column indices (0-based)
+var BOD = { NAME:0, POSITION:1, UNIT:2, FROM_MONTH:3, FROM_YEAR:4, TO_MONTH:5, TO_YEAR:6 };
+var BOD_COLS = 7;
+
+// _MeterChanges column indices (0-based)
+var MC = {
+  UNIT:0, DATE:1, OLD_METER:2, OLD_FINAL:3,
+  NEW_METER:4, NEW_START:5, YEAR:6, MONTH:7, STATUS:8
+};
+var MC_COLS = 9;
 
 // Unit Ledger display → _WaterLedger column map (display col 1-based → WL index)
 // -1 = read-only / calculated
@@ -101,6 +127,10 @@ function onOpen() {
     .addItem('↺  Refresh Summary',               'refreshMonthlySummary')
     .addItem('↻  Import Masterlist',              'importMasterlistFromSource')
     .addItem('↻  Refresh Reading Input Table',   'populateWaterInputTable')
+    .addSeparator()
+    .addItem('🔄 Clean Upload + Recompute',            'cleanUploadAndRecompute')
+    .addSeparator()
+    .addItem('🧪 Test: Min Water Bill Rule',           'testBillingMin')
     .addToUi();
 }
 

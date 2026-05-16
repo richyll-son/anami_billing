@@ -37,7 +37,7 @@ function _reorderSheets() {
   var order = [
     SH.MASTERLIST, SH.W_INPUT, SH.W_STORE, SH.RATE_CALC,
     SH.UNIT_LEDGER, SH.PAY_LOG, SH.SUMMARY, SH.P1_PRINT, SH.P2_PRINT,
-    SH._WL, SH._DL
+    SH._WL, SH._DL, SH._BOD, SH._DUES_RATES, SH._METER_CHG
   ];
   var sp = ss_();
   order.forEach(function(name, i) {
@@ -56,8 +56,18 @@ function _createHiddenSheets() {
   var dlH = ['UNIT ID','YEAR','MONTH','PAYMENT DATE','DEBIT','CREDIT',
              'BALANCE','OR NUMBER','REMARKS'];
 
-  _initHiddenSheet(SH._WL, wlH, '#cccccc');
-  _initHiddenSheet(SH._DL, dlH, '#cccccc');
+  var bodH = ['NAME','POSITION','UNIT','EXEMPT_FROM_MONTH','EXEMPT_FROM_YEAR',
+              'EXEMPT_TO_MONTH','EXEMPT_TO_YEAR'];
+  var drH  = ['AMOUNT','FROM_MONTH','FROM_YEAR','TO_MONTH','TO_YEAR'];
+
+  var mcH = ['UNIT ID','DATE CHANGED','OLD METER NO','OLD METER FINAL READING',
+             'NEW METER NO','NEW METER START READING','BILLING YEAR','BILLING MONTH','STATUS'];
+
+  _initHiddenSheet(SH._WL,         wlH,  '#cccccc');
+  _initHiddenSheet(SH._DL,         dlH,  '#cccccc');
+  _initHiddenSheet(SH._BOD,        bodH, '#ffe0b2');
+  _initHiddenSheet(SH._DUES_RATES, drH,  '#e8f5e9');
+  _initHiddenSheet(SH._METER_CHG,  mcH,  '#fff9c4');
 }
 
 function _initHiddenSheet(name, headers, bg) {
@@ -102,11 +112,14 @@ function _setupWaterInputSheet() {
     [4,  'A', 'Month (reading month):'],
     [5,  'A', 'MCWD Date From:'],
     [6,  'A', 'MCWD Date To:'],
-    [7,  'A', 'MCWD Amount (₱):'],
+    [7,  'A', 'Water Pump Electricity and Maintenance:'],
     [8,  'A', 'Electricity Date From:'],
     [9,  'A', 'Electricity Date To:'],
     [10, 'A', 'Electricity Amount (₱):'],
     [11, 'A', 'Manpower Amount (₱):'],
+    [12, 'A', 'Add-on MCWD Until (Month / Year):'],
+    [13, 'A', 'Coverage From (prev reading date):'],
+    [14, 'A', 'Coverage To (current reading date):'],
   ];
   labels.forEach(function(l) {
     sh.getRange(l[0], 1).setValue(l[2]).setFontWeight('bold');
@@ -117,19 +130,32 @@ function _setupWaterInputSheet() {
   sh.getRange('B4').setValue(MONTHS[now.getMonth()]);
   sh.getRange('B11').setValue(MANPOWER_DEF);
 
+  // Add-on MCWD cutoff default: April 2026
+  sh.getRange('B12').setValue('April');
+  sh.getRange('C12').setValue(2026);
+  sh.getRange('C12').setNumberFormat('0');
+
+  // Coverage dates (blank by default — admin fills each billing cycle)
+  sh.getRange('B13').setNumberFormat('MM/DD/YYYY');
+  sh.getRange('B14').setNumberFormat('MM/DD/YYYY');
+
   // Dropdowns
   var yearList = ['2024','2025','2026','2027','2028','2029','2030'];
   sh.getRange('B3').setDataValidation(
     SpreadsheetApp.newDataValidation().requireValueInList(yearList, true).build());
   sh.getRange('B4').setDataValidation(
     SpreadsheetApp.newDataValidation().requireValueInList(MONTHS, true).build());
+  sh.getRange('B12').setDataValidation(
+    SpreadsheetApp.newDataValidation().requireValueInList(MONTHS, true).build());
+  sh.getRange('C12').setDataValidation(
+    SpreadsheetApp.newDataValidation().requireValueInList(yearList, true).build());
 
-  // Table header row 13
+  // Table header row 15
   var TH = ['UNIT ID','METER NUMBER','HOMEOWNER NAME',
-            'CURRENT READING','PREVIOUS READING','CONSUMPTION (m³)'];
-  sh.getRange(13, 1, 1, TH.length).setValues([TH])
+            'CURRENT READING','PREVIOUS READING','CONSUMPTION (m³)','ADD-ON MCWD (₱)'];
+  sh.getRange(15, 1, 1, TH.length).setValues([TH])
     .setFontWeight('bold').setBackground('#1a73e8').setFontColor('#ffffff');
-  sh.setFrozenRows(13);
+  sh.setFrozenRows(15);
 
   // Alert note
   sh.getRange('H3').setValue('→  Use menu: Process & Generate Bills')
@@ -137,6 +163,7 @@ function _setupWaterInputSheet() {
 
   sh.setColumnWidth(1, 105); sh.setColumnWidth(2, 135); sh.setColumnWidth(3, 180);
   sh.setColumnWidth(4, 150); sh.setColumnWidth(5, 150); sh.setColumnWidth(6, 140);
+  sh.setColumnWidth(7, 120);
 }
 
 // ── Sheet 3: Water Reading Data Store ─────────────────────────
@@ -440,6 +467,37 @@ function populateWaterInputTable() {
   var mlSh    = getSheet_(SH.MASTERLIST);
   if (!inputSh || !mlSh || mlSh.getLastRow() < 2) return;
 
+  // ── Auto-migrate old sheet structure (table at row 14 → row 16) ──
+  var a13val = String(inputSh.getRange('A13').getValue()).trim();
+  if (a13val !== 'Coverage From (prev reading date):') {
+    // Old structure detected: shift everything from row 13 downward by 2
+    var oldLast = inputSh.getLastRow();
+    if (oldLast >= 13) {
+      // Copy existing rows 13..lastRow to rows 15..lastRow+2
+      var rowsToShift = oldLast - 13 + 1;
+      var shiftData = inputSh.getRange(13, 1, rowsToShift, 7).getValues();
+      var shiftFormats = inputSh.getRange(13, 1, rowsToShift, 7).getBackgrounds();
+      var shiftColors  = inputSh.getRange(13, 1, rowsToShift, 7).getFontColors();
+      var shiftWeights = inputSh.getRange(13, 1, rowsToShift, 7).getFontWeights();
+      inputSh.getRange(13, 1, rowsToShift, 7).clearContent().clearFormat();
+      inputSh.getRange(15, 1, rowsToShift, 7).setValues(shiftData)
+        .setBackgrounds(shiftFormats).setFontColors(shiftColors).setFontWeights(shiftWeights);
+    }
+    // Write new labels and formatting for rows 13–14
+    inputSh.getRange('A13').setValue('Coverage From (prev reading date):').setFontWeight('bold');
+    inputSh.getRange('A14').setValue('Coverage To (current reading date):').setFontWeight('bold');
+    inputSh.getRange('B13').setNumberFormat('MM/DD/YYYY');
+    inputSh.getRange('B14').setNumberFormat('MM/DD/YYYY');
+
+    // Ensure Add-on MCWD Until row 12 label exists
+    if (String(inputSh.getRange('A12').getValue()).trim() === '') {
+      inputSh.getRange('A12').setValue('Add-on MCWD Until (Month / Year):').setFontWeight('bold');
+    }
+
+    inputSh.setFrozenRows(15);
+    toast_('Sheet structure updated to new layout.', 'Setup');
+  }
+
   var mlData = mlSh.getRange(2, 1, mlSh.getLastRow() - 1, 12).getValues();
 
   // Last current reading per unit from Water Store
@@ -447,9 +505,8 @@ function populateWaterInputTable() {
   var wsSh = getSheet_(SH.W_STORE);
   if (wsSh && wsSh.getLastRow() > 1) {
     var wsData = wsSh.getRange(2, 4, wsSh.getLastRow() - 1, 4).getValues();
-    // cols: UNIT_ID(0), METER(1), PREV_READING(2), CUR_READING(3)
     wsData.forEach(function(r) {
-      if (r[0]) lastReading[r[0]] = r[3]; // keep last (data is appended chronologically)
+      if (r[0]) lastReading[r[0]] = r[3];
     });
   }
 
@@ -459,24 +516,59 @@ function populateWaterInputTable() {
     var uid = r[0];
     if (!uid || String(r[11]).toLowerCase() === 'no') return;
     var prev = (lastReading[uid] !== undefined) ? lastReading[uid] : '';
-    rows.push([uid, r[9], ownerName(r), '', prev, '']); // D (current) blank for admin to fill
+    rows.push([uid, r[9], ownerName(r), '', prev, '', '']);
   });
 
   if (rows.length === 0) return;
 
-  // Clear old table rows (keep header row 13 intact)
+  // Clear old data rows (keep header row 15 intact)
   var last = inputSh.getLastRow();
   if (last >= INPUT_TABLE_START) {
-    inputSh.getRange(INPUT_TABLE_START, 1, last - INPUT_TABLE_START + 1, 6).clearContent();
+    inputSh.getRange(INPUT_TABLE_START, 1, last - INPUT_TABLE_START + 1, 7).clearContent();
   }
 
-  inputSh.getRange(INPUT_TABLE_START, 1, rows.length, 6).setValues(rows);
+  inputSh.getRange(INPUT_TABLE_START, 1, rows.length, 7).setValues(rows);
 
-  // Consumption formula (col F = col 6): =IF(AND(ISNUMBER(D#),ISNUMBER(E#)),MAX(0,D#-E#),"")
+  // Consumption formula (col F)
   for (var i = 0; i < rows.length; i++) {
     var row = INPUT_TABLE_START + i;
     inputSh.getRange(row, WI_COL.CONS).setFormula(
       '=IF(AND(ISNUMBER(D' + row + '),ISNUMBER(E' + row + ')),MAX(0,D' + row + '-E' + row + '),"")');
+  }
+
+  // Highlight rows with pending meter changes and add cell notes
+  var curYear  = parseInt(inputSh.getRange('B3').getValue(), 10);
+  var curMonth = String(inputSh.getRange('B4').getValue()).trim();
+  var mcSh = getSheet_(SH._METER_CHG);
+  if (mcSh && mcSh.getLastRow() > 1 && curYear && curMonth) {
+    var mcData = mcSh.getRange(2, 1, mcSh.getLastRow() - 1, MC_COLS).getValues();
+    var pendingMap = {};  // unitId → array of change descriptions
+    mcData.forEach(function(mc) {
+      var uid    = String(mc[MC.UNIT] || '').trim();
+      var mcYr   = parseInt(mc[MC.YEAR], 10);
+      var mcMo   = String(mc[MC.MONTH] || '').trim();
+      var status = String(mc[MC.STATUS] || '').trim().toLowerCase();
+      if (!uid || mcYr !== curYear || mcMo !== curMonth || status !== 'pending') return;
+      if (!pendingMap[uid]) pendingMap[uid] = [];
+      pendingMap[uid].push(
+        'Old: ' + mc[MC.OLD_METER] + ' Final: ' + toNum(mc[MC.OLD_FINAL]) +
+        ' → New: ' + mc[MC.NEW_METER] + ' Start: ' + toNum(mc[MC.NEW_START])
+      );
+    });
+
+    for (var r = 0; r < rows.length; r++) {
+      var uid = String(rows[r][0]).trim();
+      var shRow = INPUT_TABLE_START + r;
+      if (pendingMap[uid]) {
+        inputSh.getRange(shRow, 1, 1, 7).setBackground('#fff9c4');
+        var noteText = 'METER CHANGE PENDING:\n' + pendingMap[uid].join('\n') +
+                       '\n→ Enter only NEW meter current reading in column D.';
+        inputSh.getRange(shRow, WI_COL.UNIT).setNote(noteText);
+      } else {
+        inputSh.getRange(shRow, 1, 1, 7).setBackground(null);
+        inputSh.getRange(shRow, WI_COL.UNIT).clearNote();
+      }
+    }
   }
 
   toast_('Reading input table refreshed (' + rows.length + ' units).', 'Setup');

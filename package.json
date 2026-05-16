@@ -1,0 +1,19 @@
+{
+  "name": "ahnhai-billing-tests",
+  "version": "1.0.0",
+  "description": "Jest test suite for AHNHAI Billing System (Google Apps Script)",
+  "private": true,
+  "scripts": {
+    "test": "jest --config jest.config.js",
+    "test:unit": "jest --config jest.config.js __tests__/unit",
+    "test:integration": "jest --config jest.config.js __tests__/integration",
+    "test:system": "jest --config jest.config.js __tests__/system",
+    "test:coverage": "jest --config jest.config.js --coverage"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.23.0",
+    "@babel/preset-env": "^7.23.0",
+    "babel-jest": "^29.7.0",
+    "jest": "^29.7.0"
+  }
+}

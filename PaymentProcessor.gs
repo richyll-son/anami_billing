@@ -1,7 +1,7 @@
 // ============================================================
 // AHNHAI Billing System — PaymentProcessor.gs
-// Post Payments: apply credits to oldest unpaid bills,
-// recalculate running balances, mark rows as Posted.
+// Post Payments: apply water credit to the most recent bill,
+// dues credit oldest-first; recalculate running balances.
 // ============================================================
 
 function postPayments() {
@@ -110,66 +110,114 @@ function postPayments() {
   alert_('Payment posting complete!\n\nPosted: ' + posted + '\nErrors: ' + errors);
 }
 
-// ── Apply credit to oldest unpaid water bills (in-memory) ────
+// ── Apply credit to the most recent water bill only (in-memory) ──
+// The entire payment goes to the last ledger row for the unit.
+// If the payment exceeds the balance on that row, the surplus stays
+// as credit there and carries forward as a negative balance to the
+// next billing period (handled automatically by recalcWaterBalances).
 function _applyWaterCredit(wlData, unitId, amount, payDate, orNum, remarks) {
-  var remaining = amount;
   var payDateStr = fmtDate(payDate || new Date());
+  var orStr      = String(orNum || '').trim();
+  var normId     = String(unitId || '').trim();
 
-  for (var i = 0; i < wlData.length && remaining > 0; i++) {
-    if (wlData[i][WL.UNIT] !== unitId) continue;
-
-    var debit   = toNum(wlData[i][WL.DEBIT]);
-    var pen     = toNum(wlData[i][WL.PENALTY]);
-    var addon   = toNum(wlData[i][WL.ADDON]);
-    var credit  = toNum(wlData[i][WL.CREDIT]);
-    var billDue = debit + pen + addon;
-    var unpaid  = Math.max(0, billDue - credit);
-
-    if (unpaid <= 0) continue;
-
-    var apply = Math.min(remaining, unpaid);
-    wlData[i][WL.CREDIT]   = Math.round((credit + apply) * 100) / 100;
-    wlData[i][WL.PAY_DATE] = payDateStr;
-
-    if (!wlData[i][WL.OR])      wlData[i][WL.OR]      = orNum;
-    if (!wlData[i][WL.REMARKS]) wlData[i][WL.REMARKS]  = remarks || ('Paid: ' + payDateStr);
-
-    remaining = Math.round((remaining - apply) * 100) / 100;
-  }
-
-  // If there's still remaining credit (overpayment), note it on the last bill for this unit
-  if (remaining > 0) {
-    for (var j = wlData.length - 1; j >= 0; j--) {
-      if (wlData[j][WL.UNIT] === unitId) {
-        var note = 'Overpayment: ₱' + fmt2(remaining);
-        wlData[j][WL.REMARKS] = wlData[j][WL.REMARKS]
-          ? wlData[j][WL.REMARKS] + ' | ' + note : note;
-        break;
-      }
+  // Find the last (most recent) row for this unit
+  var lastIdx = -1;
+  for (var i = wlData.length - 1; i >= 0; i--) {
+    if (String(wlData[i][WL.UNIT] || '').trim() === normId) {
+      lastIdx = i;
+      break;
     }
   }
+
+  if (lastIdx === -1) return; // no ledger entry for this unit yet
+
+  // Apply the full payment to the most recent row
+  wlData[lastIdx][WL.CREDIT]   = Math.round((toNum(wlData[lastIdx][WL.CREDIT]) + amount) * 100) / 100;
+  wlData[lastIdx][WL.PAY_DATE] = payDateStr;
+
+  var existOr = String(wlData[lastIdx][WL.OR] || '').trim();
+  wlData[lastIdx][WL.OR] = (existOr && existOr !== orStr)
+    ? existOr + ' / ' + orStr : orStr;
+
+  var autoRemark = orStr ? 'Pmt – ' + orStr : 'Pmt';
+  var existRem   = String(wlData[lastIdx][WL.REMARKS] || '').trim();
+  wlData[lastIdx][WL.REMARKS] = existRem ? existRem + ' | ' + autoRemark : autoRemark;
 }
 
-// ── Apply credit to oldest unpaid dues bills (in-memory) ─────
-function _applyDuesCredit(dlData, unitId, amount, payDate, orNum, remarks) {
-  var remaining  = amount;
-  var payDateStr = fmtDate(payDate || new Date());
+// ── Apply credit to dues (in-memory) ─────────────────────────
+// If targetMonth + targetYear are given, applies the full amount to that
+// specific row (partial payment allowed). Falls back to oldest-first
+// if the target row is not found or no target is specified.
+function _applyDuesCredit(dlData, unitId, amount, payDate, orNum, remarks, targetMonth, targetYear) {
+  var payDateStr  = fmtDate(payDate || new Date());
+  var orStr       = String(orNum || '').trim();
+  var normId      = String(unitId || '').trim();
 
-  for (var i = 0; i < dlData.length && remaining > 0; i++) {
-    if (dlData[i][DL.UNIT] !== unitId) continue;
+  // ── Targeted: apply to a specific billing month ─────────────
+  if (targetMonth && targetYear) {
+    var normMonth = String(targetMonth).trim();
+    var normYear  = parseInt(targetYear, 10);
+    for (var t = 0; t < dlData.length; t++) {
+      if (String(dlData[t][DL.UNIT]  || '').trim() !== normId)    continue;
+      if (String(dlData[t][DL.MONTH] || '').trim() !== normMonth)  continue;
+      if (toNum(dlData[t][DL.YEAR])  !== normYear)                 continue;
 
+      dlData[t][DL.CREDIT]   = Math.round((toNum(dlData[t][DL.CREDIT]) + amount) * 100) / 100;
+      dlData[t][DL.PAY_DATE] = payDateStr;
+
+      var eo = String(dlData[t][DL.OR] || '').trim();
+      dlData[t][DL.OR] = (eo && eo !== orStr) ? eo + ' / ' + orStr : orStr;
+
+      var autoRemark = orStr ? 'Pmt – ' + orStr : 'Pmt';
+      var er = String(dlData[t][DL.REMARKS] || '').trim();
+      dlData[t][DL.REMARKS] = er ? er + ' | ' + autoRemark : autoRemark;
+      return;
+    }
+    // Target row not found — fall through to oldest-first
+  }
+
+  // ── Oldest-first (default) ───────────────────────────────────
+  var toApply = [];
+  var tempRem = amount;
+  for (var i = 0; i < dlData.length && tempRem > 0; i++) {
+    if (String(dlData[i][DL.UNIT] || '').trim() !== normId) continue;
     var debit  = toNum(dlData[i][DL.DEBIT]);
     var credit = toNum(dlData[i][DL.CREDIT]);
     var unpaid = Math.max(0, debit - credit);
     if (unpaid <= 0) continue;
+    var apply = Math.round(Math.min(tempRem, unpaid) * 100) / 100;
+    toApply.push({ idx: i, apply: apply });
+    tempRem = Math.round((tempRem - apply) * 100) / 100;
+  }
 
-    var apply = Math.min(remaining, unpaid);
-    dlData[i][DL.CREDIT]   = Math.round((credit + apply) * 100) / 100;
+  var total = toApply.length;
+
+  toApply.forEach(function(entry, n) {
+    var i      = entry.idx;
+    dlData[i][DL.CREDIT]   = Math.round((toNum(dlData[i][DL.CREDIT]) + entry.apply) * 100) / 100;
     dlData[i][DL.PAY_DATE] = payDateStr;
 
-    if (!dlData[i][DL.OR])      dlData[i][DL.OR]      = orNum;
-    if (!dlData[i][DL.REMARKS]) dlData[i][DL.REMARKS]  = remarks || ('Paid: ' + payDateStr);
+    var existOr = String(dlData[i][DL.OR] || '').trim();
+    dlData[i][DL.OR] = (existOr && existOr !== orStr) ? existOr + ' / ' + orStr : orStr;
 
-    remaining = Math.round((remaining - apply) * 100) / 100;
+    var autoRemark = 'Pmt ' + (n + 1) + ' of ' + total + ' – ' + orStr;
+    var existRem   = String(dlData[i][DL.REMARKS] || '').trim();
+    dlData[i][DL.REMARKS] = existRem ? existRem + ' | ' + autoRemark : autoRemark;
+  });
+
+  // Overpayment: carry excess on last row
+  if (tempRem > 0) {
+    for (var j = dlData.length - 1; j >= 0; j--) {
+      if (String(dlData[j][DL.UNIT] || '').trim() === normId) {
+        dlData[j][DL.CREDIT] = Math.round((toNum(dlData[j][DL.CREDIT]) + tempRem) * 100) / 100;
+        var note = 'Advance ₱' + fmt2(tempRem) + ' – ' + orStr;
+        var er2  = String(dlData[j][DL.REMARKS] || '').trim();
+        dlData[j][DL.REMARKS] = er2 ? er2 + ' | ' + note : note;
+        dlData[j][DL.PAY_DATE] = payDateStr;
+        var eo2 = String(dlData[j][DL.OR] || '').trim();
+        dlData[j][DL.OR] = (eo2 && eo2 !== orStr) ? eo2 + ' / ' + orStr : orStr;
+        break;
+      }
+    }
   }
 }

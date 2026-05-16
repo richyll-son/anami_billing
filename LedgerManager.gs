@@ -89,12 +89,14 @@ function refreshUnitLedger(unitId) {
     var wlRange = sh.getRange(UL_DATA_ROW, UL_WATER_COL, wlRows.length, 15);
     wlRange.setValues(wlRows);
 
-    // Colour Balance column based on value
-    for (var i = 0; i < wlRows.length; i++) {
-      var balCell = sh.getRange(UL_DATA_ROW + i, UL_WATER_COL + 11); // col 12
-      var bal     = toNum(wlRows[i][11]);
-      balCell.setBackground(bal <= 0 ? '#c8e6c9' : '#ffcdd2');
-    }
+    // Accounting format: positive = owes (shown normal), negative = credit (shown in parens)
+    var balFmtRange = sh.getRange(UL_DATA_ROW, UL_WATER_COL + 11, wlRows.length, 1);
+    balFmtRange.setNumberFormat('#,##0.00;(#,##0.00)');
+
+    // Colour: red if owes (stored > 0), green if credit/zero (stored <= 0)
+    var rawWlBals = wlRows.map(function(r) { return toNum(r[11]); });
+    var wBgColors = rawWlBals.map(function(b) { return [b > 0 ? '#ffcdd2' : '#c8e6c9']; });
+    balFmtRange.setBackgrounds(wBgColors);
   }
 
   // ── Load dues ledger rows for this unit ───────────────────
@@ -121,11 +123,11 @@ function refreshUnitLedger(unitId) {
     var dlRange = sh.getRange(UL_DATA_ROW, UL_DUES_COL, dlRows.length, 7);
     dlRange.setValues(dlRows);
 
-    for (var j = 0; j < dlRows.length; j++) {
-      var dBalCell = sh.getRange(UL_DATA_ROW + j, UL_DUES_COL + 4); // col 5 within dues
-      var dBal     = toNum(dlRows[j][4]);
-      dBalCell.setBackground(dBal <= 0 ? '#c8e6c9' : '#ffcdd2');
-    }
+    var dBalFmtRange = sh.getRange(UL_DATA_ROW, UL_DUES_COL + 4, dlRows.length, 1);
+    dBalFmtRange.setNumberFormat('#,##0.00;(#,##0.00)');
+    var rawDlBals = dlRows.map(function(r) { return toNum(r[4]); });
+    var dBgColors = rawDlBals.map(function(b) { return [b > 0 ? '#ffcdd2' : '#c8e6c9']; });
+    dBalFmtRange.setBackgrounds(dBgColors);
   }
 }
 
@@ -202,10 +204,11 @@ function _recolourWaterBalances(sh, uid) {
   var dispRow = UL_DATA_ROW;
   for (var i = 0; i < rows.length; i++) {
     if (rows[i][0] !== uid) continue;
-    var bal = toNum(wlData[i][0]);
+    var bal = toNum(wlData[i][0]); // stored: positive = owes, negative = credit
     sh.getRange(dispRow, UL_WATER_COL + 11)
       .setValue(bal)
-      .setBackground(bal <= 0 ? '#c8e6c9' : '#ffcdd2');
+      .setNumberFormat('#,##0.00;(#,##0.00)')
+      .setBackground(bal > 0 ? '#ffcdd2' : '#c8e6c9');
     dispRow++;
   }
 }
@@ -218,10 +221,11 @@ function _recolourDuesBalances(sh, uid) {
   var dispRow = UL_DATA_ROW;
   for (var i = 0; i < rows.length; i++) {
     if (rows[i][0] !== uid) continue;
-    var bal = toNum(dlData[i][0]);
+    var bal = toNum(dlData[i][0]); // stored: positive = owes, negative = credit
     sh.getRange(dispRow, UL_DUES_COL + 4)
       .setValue(bal)
-      .setBackground(bal <= 0 ? '#c8e6c9' : '#ffcdd2');
+      .setNumberFormat('#,##0.00;(#,##0.00)')
+      .setBackground(bal > 0 ? '#ffcdd2' : '#c8e6c9');
     dispRow++;
   }
 }

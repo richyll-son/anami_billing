@@ -111,19 +111,17 @@ function refreshMonthlySummary() {
 
   var latestPeriod = sg_getLatestPeriod_(waterRows, duesRows);
 
+  var NCOLS = 16;
+  function padRow(arr) {
+    while (arr.length < NCOLS) arr.push('');
+    return arr;
+  }
+
   var out = [];
 
-  out.push([
-    'MONTHLY BILLING SUMMARY'
-  ]);
-
-  out.push([
-    'Generated: ' + fmtDate(new Date())
-  ]);
-
-  out.push([
-    latestPeriod || ''
-  ]);
+  out.push(padRow(['MONTHLY BILLING SUMMARY']));
+  out.push(padRow(['Generated: ' + fmtDate(new Date())]));
+  out.push(padRow([latestPeriod || '']));
 
   out.push([
     'Unit',
