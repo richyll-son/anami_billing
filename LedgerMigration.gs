@@ -550,21 +550,32 @@ function lm_parseWaterRows_(values, headerInfo, unitId) {
 
 
 /**
- * Derives YEAR and MONTH from:
- * Bill Date → Present Reading Date → Payment Date
+ * Derives YEAR and MONTH (the reading period) from, in priority order:
+ * Present Reading Date → Bill Date (shifted back one month) → Payment Date
+ *
+ * Bill Date is documented (see getBillDate in Code.gs) as "10th of the
+ * month AFTER the reading month" — so its own month is always one month
+ * later than the true reading period and must be shifted back by one to
+ * recover it. Present Reading Date is the actual meter-reading date and
+ * needs no adjustment, so it's preferred whenever available.
  */
 function lm_deriveYearMonthFromWaterRow_(billDate, presentReadingDate, paymentDate) {
-  var candidates = [billDate, presentReadingDate, paymentDate];
+  var d = lm_toDate_(presentReadingDate);
+  if (d) {
+    return { year: d.getFullYear(), month: lm_monthName_(d.getMonth() + 1) };
+  }
 
-  for (var i = 0; i < candidates.length; i++) {
-    var d = lm_toDate_(candidates[i]);
+  d = lm_toDate_(billDate);
+  if (d) {
+    var m = d.getMonth() - 1; // shift back one month (0-based)
+    var y = d.getFullYear();
+    if (m < 0) { m = 11; y -= 1; }
+    return { year: y, month: lm_monthName_(m + 1) };
+  }
 
-    if (d) {
-      return {
-        year: d.getFullYear(),
-        month: lm_monthName_(d.getMonth() + 1)
-      };
-    }
+  d = lm_toDate_(paymentDate);
+  if (d) {
+    return { year: d.getFullYear(), month: lm_monthName_(d.getMonth() + 1) };
   }
 
   return {
