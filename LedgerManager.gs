@@ -155,7 +155,7 @@ function _writeBackWater(sh, dispRowIdx, dispColOffset, newValue) {
     wlSh.getRange(i + 2, wlColIdx + 1).setValue(newValue);
 
     // Trigger balance recalc if a financial column changed
-    if (dispColOffset === 9 || dispColOffset === 10 || dispColOffset === 13) {
+    if (dispColOffset === 10 || dispColOffset === 11 || dispColOffset === 13) {
       // Debit, Credit, or Addon changed
       recalcWaterBalances();
       // Silently refresh (re-colour balance cells only, avoid full re-render loop)

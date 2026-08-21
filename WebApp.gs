@@ -508,7 +508,25 @@ function webapp_generateBills(config, readings) {
   var billDateStr    = fmtDate(getBillDate(year, month));
   var dueDateStr     = fmtDate(getDueDate(year, month));
   var presentDateStr = fmtDate(now);
-  var penalty        = 0;
+
+  // Load previous water ledger state for penalty computation (last row per unit)
+  var wlSh2   = getSheet_(SH._WL);
+  var unitLastState = {};
+  if (wlSh2 && wlSh2.getLastRow() > 1) {
+    wlSh2.getRange(2, 1, wlSh2.getLastRow() - 1, WL_COLS).getValues().forEach(function(r) {
+      var uid = String(r[WL.UNIT] || '').trim();
+      if (!uid) return;
+      unitLastState[uid] = { balance: toNum(r[WL.BALANCE]), dueDate: r[WL.DUE_DATE] };
+    });
+  }
+
+  // Pre-load dues rates and BOD data once
+  var duesRatesSh   = getSheet_(SH._DUES_RATES);
+  var duesRatesData = (duesRatesSh && duesRatesSh.getLastRow() > 1)
+    ? duesRatesSh.getRange(2, 1, duesRatesSh.getLastRow() - 1, DR_COLS).getValues() : [];
+  var bodSh   = getSheet_(SH._BOD);
+  var bodData = (bodSh && bodSh.getLastRow() > 1)
+    ? bodSh.getRange(2, 1, bodSh.getLastRow() - 1, BOD_COLS).getValues() : [];
 
   var newWlRows = [];
   var newDlRows = [];
@@ -518,6 +536,20 @@ function webapp_generateBills(config, readings) {
     var waterRaw    = r.cons * rate;
     var debit       = r.cons === 0 ? 0 : Math.max(MIN_WATER_BILL, waterRaw);
     var isMinCharge = r.cons > 0 && waterRaw < MIN_WATER_BILL;
+
+    // Penalty: 5% of previous balance, only if today is past prev due date
+    var penalty = 0;
+    var state   = unitLastState[r.unitId];
+    if (state && state.balance > 0) {
+      var prevDue = parseDate(state.dueDate);
+      if (prevDue) {
+        var penaltyDate = new Date(prevDue.getTime());
+        penaltyDate.setDate(penaltyDate.getDate() + 1);
+        if (now >= penaltyDate) {
+          penalty = Math.round(state.balance * PENALTY_RATE * 100) / 100;
+        }
+      }
+    }
 
     var parsed = parseUID(r.unitId);
     var billNo = parsed
@@ -537,7 +569,9 @@ function webapp_generateBills(config, readings) {
     ]);
 
     if (!webapp_isCommonAccount_(r.unitId)) {
-      newDlRows.push([r.unitId, year, monthName, '', ASSOC_DUES, 0, 0, '', '']);
+      var duesDebit = isBODExempt_(r.unitId, year, month, bodData) ? 0
+                    : getDuesRate_(year, month, duesRatesData);
+      newDlRows.push([r.unitId, year, monthName, '', duesDebit, 0, 0, '', '']);
     }
 
     newWsRows.push([

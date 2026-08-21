@@ -110,38 +110,63 @@ function postPayments() {
   alert_('Payment posting complete!\n\nPosted: ' + posted + '\nErrors: ' + errors);
 }
 
-// ── Apply credit to the most recent water bill only (in-memory) ──
-// The entire payment goes to the last ledger row for the unit.
-// If the payment exceeds the balance on that row, the surplus stays
-// as credit there and carries forward as a negative balance to the
-// next billing period (handled automatically by recalcWaterBalances).
+// ── Apply credit to water bills, oldest-first (in-memory) ────
+// Unpaid = debit + penalty + addon - credit. Walks rows oldest→newest,
+// applying as much of the payment as each row needs. Any leftover
+// (overpayment) is carried to the last row for the unit as an advance
+// credit. Mirrors _applyDuesCredit's allocation logic for dues.
 function _applyWaterCredit(wlData, unitId, amount, payDate, orNum, remarks) {
   var payDateStr = fmtDate(payDate || new Date());
   var orStr      = String(orNum || '').trim();
   var normId     = String(unitId || '').trim();
 
-  // Find the last (most recent) row for this unit
-  var lastIdx = -1;
-  for (var i = wlData.length - 1; i >= 0; i--) {
-    if (String(wlData[i][WL.UNIT] || '').trim() === normId) {
-      lastIdx = i;
-      break;
-    }
+  if (amount <= 0) return;
+
+  var toApply = [];
+  var tempRem = amount;
+  for (var i = 0; i < wlData.length && tempRem > 0; i++) {
+    if (String(wlData[i][WL.UNIT] || '').trim() !== normId) continue;
+    var debit   = toNum(wlData[i][WL.DEBIT]);
+    var penalty = toNum(wlData[i][WL.PENALTY]);
+    var addon   = toNum(wlData[i][WL.ADDON]);
+    var credit  = toNum(wlData[i][WL.CREDIT]);
+    var unpaid  = Math.max(0, debit + penalty + addon - credit);
+    if (unpaid <= 0) continue;
+    var apply = Math.round(Math.min(tempRem, unpaid) * 100) / 100;
+    toApply.push({ idx: i, apply: apply });
+    tempRem = Math.round((tempRem - apply) * 100) / 100;
   }
 
-  if (lastIdx === -1) return; // no ledger entry for this unit yet
+  var total = toApply.length;
 
-  // Apply the full payment to the most recent row
-  wlData[lastIdx][WL.CREDIT]   = Math.round((toNum(wlData[lastIdx][WL.CREDIT]) + amount) * 100) / 100;
-  wlData[lastIdx][WL.PAY_DATE] = payDateStr;
+  toApply.forEach(function(entry, n) {
+    var i = entry.idx;
+    wlData[i][WL.CREDIT]   = Math.round((toNum(wlData[i][WL.CREDIT]) + entry.apply) * 100) / 100;
+    wlData[i][WL.PAY_DATE] = payDateStr;
 
-  var existOr = String(wlData[lastIdx][WL.OR] || '').trim();
-  wlData[lastIdx][WL.OR] = (existOr && existOr !== orStr)
-    ? existOr + ' / ' + orStr : orStr;
+    var existOr = String(wlData[i][WL.OR] || '').trim();
+    wlData[i][WL.OR] = (existOr && existOr !== orStr) ? existOr + ' / ' + orStr : orStr;
 
-  var autoRemark = orStr ? 'Pmt – ' + orStr : 'Pmt';
-  var existRem   = String(wlData[lastIdx][WL.REMARKS] || '').trim();
-  wlData[lastIdx][WL.REMARKS] = existRem ? existRem + ' | ' + autoRemark : autoRemark;
+    var autoRemark = 'Pmt ' + (n + 1) + ' of ' + total + ' – ' + orStr;
+    var existRem   = String(wlData[i][WL.REMARKS] || '').trim();
+    wlData[i][WL.REMARKS] = existRem ? existRem + ' | ' + autoRemark : autoRemark;
+  });
+
+  // Overpayment: carry excess on last row of unit
+  if (tempRem > 0) {
+    for (var j = wlData.length - 1; j >= 0; j--) {
+      if (String(wlData[j][WL.UNIT] || '').trim() === normId) {
+        wlData[j][WL.CREDIT] = Math.round((toNum(wlData[j][WL.CREDIT]) + tempRem) * 100) / 100;
+        var note = 'Advance ₱' + fmt2(tempRem) + ' – ' + orStr;
+        var existRem2 = String(wlData[j][WL.REMARKS] || '').trim();
+        wlData[j][WL.REMARKS] = existRem2 ? existRem2 + ' | ' + note : note;
+        wlData[j][WL.PAY_DATE] = payDateStr;
+        var existOr2 = String(wlData[j][WL.OR] || '').trim();
+        wlData[j][WL.OR] = (existOr2 && existOr2 !== orStr) ? existOr2 + ' / ' + orStr : orStr;
+        break;
+      }
+    }
+  }
 }
 
 // ── Apply credit to dues (in-memory) ─────────────────────────

@@ -278,7 +278,7 @@
       max-width: 760px;
       margin: 0 auto;
     }
-    .bill-page-wrap { page-break-after: always; break-after: page; }
+    .bill-page-wrap { margin-bottom: 32px; }
     .bill-page-divider {
       border: none;
       border-top: 2px dashed #999;
@@ -4436,12 +4436,56 @@ function _buildStandaloneHtml(billsHtml, fname) {
   sheets.forEach(function(s) { css += s.textContent; });
   var printCss = [
     'body { margin:0; padding:0; background:#fff; }',
-    '.bill-page-wrap { page-break-after:always; break-after:page; }',
+    '@page { size:A4 landscape; margin:5mm 8mm; }',
+    '.bill-page-wrap {',
+    '  page-break-after:always; break-after:page;',
+    '  page-break-inside:avoid; break-inside:avoid;',
+    '}',
     '.bill-page-wrap:last-child { page-break-after:avoid; break-after:avoid; }',
-    '@page { size:A4 portrait; margin:8mm 6mm; }',
     '@media print {',
     '  * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }',
     '  body { margin:0; padding:0; }',
+    '  /* Landscape: 2 bills side by side, centered vertically */',
+    '  .bill-page-wrap {',
+    '    display:flex; flex-direction:row; align-items:center;',
+    '    height:200mm; margin:0;',
+    '  }',
+    '  .bill-card {',
+    '    flex:0 0 calc(50% - 3mm); width:calc(50% - 3mm); max-width:none; margin:0;',
+    '    box-sizing:border-box; overflow:hidden;',
+    '    font-size:10px;',
+    '  }',
+    '  /* Vertical dashed cutting guide — stretches full page height */',
+    '  .bill-page-divider {',
+    '    display:block; flex-shrink:0;',
+    '    align-self:stretch;',
+    '    width:0; border:none;',
+    '    border-left:2px dashed #aaa;',
+    '    margin:0 3mm;',
+    '  }',
+    '  /* Compact to handle narrower column width (~137mm) */',
+    '  .bill-hdr             { padding-bottom:4px; margin-bottom:4px; gap:6px; }',
+    '  .bill-hdr-text .org-name { font-size:11.5px; }',
+    '  .bill-hdr-text .org-addr { font-size:9px; }',
+    '  .bill-hdr-text .doc-title { font-size:10px; }',
+    '  .bill-info-tbl        { margin-bottom:4px; }',
+    '  .bill-info-tbl td     { font-size:9.5px; padding:1px 2px; }',
+    '  .bill-main            { gap:5px; margin-bottom:4px; }',
+    '  .bill-stub            { width:150px; }',
+    '  .bill-row             { padding:1px 5px; }',
+    '  .bill-row .bl, .bill-row .br { font-size:9.5px; }',
+    '  .bill-total-row       { padding:2px 5px; font-size:9.5px; }',
+    '  .bill-stub-body       { padding:4px 5px; }',
+    '  .bill-stub-amt        { font-size:15px; padding:4px; margin:3px 2px; }',
+    '  .bill-bottom          { gap:5px; }',
+    '  .bill-pmt-info        { width:155px; padding:4px 5px; font-size:9px; }',
+    '  .bill-dues-row        { padding:1px 5px; }',
+    '  .bill-dues-row .bl, .bill-dues-row .br { font-size:9.5px; }',
+    '  .bill-dues-total-row  { padding:2px 5px; font-size:9.5px; }',
+    '  .bill-rate-box        { padding:3px 6px; margin-bottom:3px; font-size:9px; }',
+    '  .bill-rdg-tbl th, .bill-rdg-tbl td { padding:1px 3px; }',
+    '  .bill-reminders       { padding:3px 5px; margin-top:3px; font-size:8.5px; }',
+    '  .bill-sec-hdr         { padding:2px 6px; }',
     '}'
   ].join('\n');
   return '<!DOCTYPE html><html><head><meta charset="UTF-8">' +
